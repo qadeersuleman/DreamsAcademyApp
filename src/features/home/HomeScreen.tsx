@@ -10,6 +10,7 @@ import {
   Share,
   Platform,
   Dimensions,
+  FlatList,
 } from "react-native";
 import Svg, { Path, Circle, Line, Polyline, Rect } from "react-native-svg";
 
@@ -411,6 +412,14 @@ export const HomeScreen: React.FC<HomeProps> = ({
     extrapolate: 'clamp',
   });
 
+  // Custom FlatList for smooth scrolling without automatic navigation
+  const renderCourseItem = ({ item }: { item: any }) => (
+    <CourseCard
+      subject={item}
+      onPress={() => onSelectSubject(item)}
+    />
+  );
+
   return (
     <View style={{ flex: 1, backgroundColor: '#0F172A' }}>
       {/* Header */}
@@ -484,6 +493,7 @@ export const HomeScreen: React.FC<HomeProps> = ({
         </View>
       </Animated.View>
 
+      {/* Main Scrollable Content */}
       <Animated.ScrollView
         showsVerticalScrollIndicator={false}
         onScroll={Animated.event(
@@ -501,7 +511,7 @@ export const HomeScreen: React.FC<HomeProps> = ({
         }
         style={{ opacity: fadeAnim }}
       >
-        {/* Quick Actions */}
+        {/* Quick Actions - No auto navigation here */}
         <View style={{ paddingHorizontal: 20, marginTop: 20 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginBottom: 24 }}>
             <QuickActionButton
@@ -525,7 +535,7 @@ export const HomeScreen: React.FC<HomeProps> = ({
           </View>
         </View>
 
-        {/* Continue Learning Banner */}
+        {/* Continue Learning Banner - No auto navigation, requires explicit press */}
         {nextLesson && nextCourse && (
           <View style={{ paddingHorizontal: 20, marginBottom: 20 }}>
             <TouchableOpacity
@@ -540,6 +550,7 @@ export const HomeScreen: React.FC<HomeProps> = ({
                 shadowRadius: 8,
                 elevation: 4,
               }}
+              activeOpacity={0.8}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <View
@@ -578,7 +589,7 @@ export const HomeScreen: React.FC<HomeProps> = ({
           </View>
         )}
 
-        {/* My Courses Section */}
+        {/* My Courses Section - Using FlatList inside ScrollView for smooth, independent scrolling */}
         <View style={{ paddingHorizontal: 20, paddingBottom: 32 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#FFFFFF' }}>
@@ -591,13 +602,16 @@ export const HomeScreen: React.FC<HomeProps> = ({
             </TouchableOpacity>
           </View>
 
-          {SUBJECTS.map((subject) => (
-            <CourseCard
-              key={subject.id}
-              subject={subject}
-              onPress={() => onSelectSubject(subject)}
-            />
-          ))}
+          {/* Render courses with FlatList for optimal scrolling performance */}
+          {/* Each course opens ONLY when explicitly tapped - no auto-open */}
+          <FlatList
+            data={SUBJECTS}
+            renderItem={renderCourseItem}
+            keyExtractor={(item) => item.id}
+            scrollEnabled={false} // Let parent ScrollView handle scrolling
+            nestedScrollEnabled={true}
+            showsVerticalScrollIndicator={false}
+          />
         </View>
 
         {/* Motivational Quote */}
@@ -631,6 +645,7 @@ export const HomeScreen: React.FC<HomeProps> = ({
                 shadowRadius: 4,
                 elevation: 3,
               }}
+              activeOpacity={0.7}
             >
               <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>
                 Start Learning

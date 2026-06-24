@@ -1,51 +1,155 @@
 import React, { useState, useRef, useEffect } from "react";
-import { View, Text, ScrollView, TextInput, StyleSheet, Animated } from "react-native";
-import { MOCK_SUBJECTS, Subject, Quiz, Question } from "../../data/mockData";
-import { CheckIcon, ClockIcon, SearchIcon, ArrowRightIcon, BackIcon } from "../../shared/widgets/Icons";
-import { AppCard, AppButton } from "../../shared/widgets/Widgets";
-import { FadeInUp, BouncyPressable, AnimatedProgressBar } from "../../shared/components/AnimatedComponents";
-import Colors from "../../theme/Colors";
+import {
+  View,
+  Text,
+  ScrollView,
+  TextInput,
+  TouchableOpacity,
+  Animated,
+  Platform,
+  Dimensions,
+} from "react-native";
+import Svg, { Path, Circle, Line, Polyline, Rect } from "react-native-svg";
 
-interface TestsScreenProps {
-  onSelectSubject?: (subject: Subject) => void;
-}
+const { height: screenHeight } = Dimensions.get("window");
 
-export const TestsScreen: React.FC<TestsScreenProps> = () => {
+// ======================== CUSTOM ICONS ========================
+
+const SearchIcon: React.FC<{ size: number; color: string }> = ({ size, color }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Circle cx="11" cy="11" r="8" stroke={color} strokeWidth="2"/>
+    <Line x1="21" y1="21" x2="16.65" y2="16.65" stroke={color} strokeWidth="2" strokeLinecap="round"/>
+  </Svg>
+);
+
+const BackIcon: React.FC<{ size: number; color: string }> = ({ size, color }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Line x1="19" y1="12" x2="5" y2="12" stroke={color} strokeWidth="2" strokeLinecap="round"/>
+    <Polyline points="12 19 5 12 12 5" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+  </Svg>
+);
+
+const CheckIcon: React.FC<{ size: number; color: string }> = ({ size, color }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Polyline points="20 6 9 17 4 12" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+  </Svg>
+);
+
+const ClockIcon: React.FC<{ size: number; color: string }> = ({ size, color }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Circle cx="12" cy="12" r="10" stroke={color} strokeWidth="2"/>
+    <Polyline points="12 6 12 12 16 14" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+  </Svg>
+);
+
+const QuizIcon: React.FC<{ size: number; color: string }> = ({ size, color }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Circle cx="12" cy="12" r="10" stroke={color} strokeWidth="2"/>
+    <Path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" stroke={color} strokeWidth="2" strokeLinecap="round"/>
+    <Line x1="12" y1="17" x2="12.01" y2="17" stroke={color} strokeWidth="2" strokeLinecap="round"/>
+  </Svg>
+);
+
+// ======================== DEFAULT QUIZ DATA ========================
+
+const DEFAULT_QUIZZES = [
+  {
+    id: "1",
+    title: "Science Fundamentals",
+    subject: "General Science",
+    subjectColor: "#3B82F6",
+    questions: [
+      { id: "q1", text: "What is the hardest natural substance?", options: ["Iron", "Gold", "Diamond", "Platinum"], correct: 2 },
+      { id: "q2", text: "Which planet is known as the Red Planet?", options: ["Jupiter", "Mars", "Venus", "Saturn"], correct: 1 },
+      { id: "q3", text: "What is the chemical symbol for Gold?", options: ["Go", "Gd", "Au", "Ag"], correct: 2 },
+    ],
+    completed: false,
+    score: 0,
+  },
+  {
+    id: "2",
+    title: "Mathematics Basics",
+    subject: "Mathematics",
+    subjectColor: "#10B981",
+    questions: [
+      { id: "q1", text: "What is the value of π (pi) approximately?", options: ["3.14", "2.71", "1.62", "4.13"], correct: 0 },
+      { id: "q2", text: "What is the square root of 144?", options: ["10", "11", "12", "13"], correct: 2 },
+    ],
+    completed: true,
+    score: 50,
+  },
+  {
+    id: "3",
+    title: "Chemistry Basics",
+    subject: "Chemistry",
+    subjectColor: "#F59E0B",
+    questions: [
+      { id: "q1", text: "What is H2O commonly known as?", options: ["Oxygen", "Hydrogen", "Water", "Salt"], correct: 2 },
+      { id: "q2", text: "What is the pH value of pure water?", options: ["5", "6", "7", "8"], correct: 2 },
+    ],
+    completed: false,
+    score: 0,
+  },
+  {
+    id: "4",
+    title: "Physics Laws",
+    subject: "Physics",
+    subjectColor: "#EF4444",
+    questions: [
+      { id: "q1", text: "Who discovered gravity?", options: ["Einstein", "Newton", "Galileo", "Tesla"], correct: 1 },
+      { id: "q2", text: "What is the unit of force?", options: ["Watt", "Joule", "Newton", "Pascal"], correct: 2 },
+    ],
+    completed: false,
+    score: 0,
+  },
+  {
+    id: "5",
+    title: "Computer Fundamentals",
+    subject: "Computer Basics",
+    subjectColor: "#8B5CF6",
+    questions: [
+      { id: "q1", text: "What does CPU stand for?", options: ["Central Processing Unit", "Computer Personal Unit", "Central Program Unit", "Core Processing Unit"], correct: 0 },
+      { id: "q2", text: "Which of these is an output device?", options: ["Keyboard", "Mouse", "Monitor", "Scanner"], correct: 2 },
+    ],
+    completed: true,
+    score: 100,
+  },
+];
+
+// ======================== TEST SCREEN COMPONENT ========================
+
+export const TestsScreen: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState<"all" | "completed" | "pending">("all");
-  
-  // Quiz running state
-  const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
-  const [activeSubject, setActiveSubject] = useState<Subject | null>(null);
+  const [activeQuiz, setActiveQuiz] = useState<any>(null);
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
   const [selectedOptionIdx, setSelectedOptionIdx] = useState<number | null>(null);
   const [isAnswerChecked, setIsAnswerChecked] = useState(false);
   const [score, setScore] = useState(0);
   const [showResult, setShowResult] = useState(false);
+  
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scrollViewRef = useRef<ScrollView>(null);
 
-  // Collect all quizzes across all subjects
-  const allQuizzes: { quiz: Quiz; subject: Subject }[] = [];
-  MOCK_SUBJECTS.forEach((subject) => {
-    subject.quizzes.forEach((quiz) => {
-      allQuizzes.push({ quiz, subject });
-    });
-  });
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 500,
+      useNativeDriver: true,
+    }).start();
+  }, []);
 
-  // Filter and search quizzes
-  const filteredQuizzes = allQuizzes.filter(({ quiz, subject }) => {
-    const matchesSearch = 
-      quiz.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      subject.title.toLowerCase().includes(searchQuery.toLowerCase());
-    
+  const filteredQuizzes = DEFAULT_QUIZZES.filter((quiz) => {
+    const matchesSearch = quiz.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          quiz.subject.toLowerCase().includes(searchQuery.toLowerCase());
     if (!matchesSearch) return false;
     if (filter === "completed") return quiz.completed;
     if (filter === "pending") return !quiz.completed;
     return true;
   });
 
-  const startQuiz = (quiz: Quiz, subject: Subject) => {
+  const startQuiz = (quiz: any) => {
     setActiveQuiz(quiz);
-    setActiveSubject(subject);
     setCurrentQuestionIdx(0);
     setSelectedOptionIdx(null);
     setIsAnswerChecked(false);
@@ -61,8 +165,8 @@ export const TestsScreen: React.FC<TestsScreenProps> = () => {
   const handleCheckAnswer = () => {
     if (selectedOptionIdx === null || !activeQuiz) return;
     setIsAnswerChecked(true);
-    const correctIdx = activeQuiz.questions[currentQuestionIdx].correctAnswerIndex;
-    if (selectedOptionIdx === correctIdx) {
+    const currentQuestion = activeQuiz.questions[currentQuestionIdx];
+    if (selectedOptionIdx === currentQuestion.correct) {
       setScore((prev) => prev + 1);
     }
   };
@@ -80,135 +184,254 @@ export const TestsScreen: React.FC<TestsScreenProps> = () => {
     }
   };
 
-  // 1. If taking a quiz
-  if (activeQuiz && activeSubject) {
+  const resetQuiz = () => {
+    setActiveQuiz(null);
+    setCurrentQuestionIdx(0);
+    setSelectedOptionIdx(null);
+    setIsAnswerChecked(false);
+    setScore(0);
+    setShowResult(false);
+  };
+
+  // 1. Quiz Taking Screen
+  if (activeQuiz) {
     const currentQuestion = activeQuiz.questions[currentQuestionIdx];
-    const percentage = Math.round(((currentQuestionIdx) / activeQuiz.questions.length) * 100);
+    const totalQuestions = activeQuiz.questions.length;
+    const progress = ((currentQuestionIdx) / totalQuestions) * 100;
 
     return (
-      <View className="flex-1 bg-background justify-between">
-        {/* Quiz Header */}
-        <FadeInUp delay={50} duration={300}>
-          <View className="flex-row items-center px-5 py-4 bg-white border-b border-primary/10 shadow-sm shadow-primary/5">
-            <BouncyPressable onPress={() => setActiveQuiz(null)}>
-              <View className="p-2.5 mr-3 bg-primary/10 rounded-full border border-primary/10">
-                <BackIcon size={14} color={Colors.textDark} />
-              </View>
-            </BouncyPressable>
-            <View className="flex-1">
-              <Text className="text-[9px] uppercase font-extrabold text-accent tracking-widest">{activeSubject.title} Test</Text>
-              <Text className="text-xs font-extrabold text-textDark mt-0.5" numberOfLines={1}>{activeQuiz.title}</Text>
+      <View style={{ flex: 1, backgroundColor: '#0F172A' }}>
+        {/* Header */}
+        <View
+          style={{
+            backgroundColor: '#1F2937',
+            paddingTop: Platform.OS === 'ios' ? 44 : 24,
+            paddingBottom: 16,
+            paddingHorizontal: 20,
+            borderBottomWidth: 1,
+            borderBottomColor: 'rgba(124,92,255,0.2)',
+            flexDirection: 'row',
+            alignItems: 'center',
+          }}
+        >
+          <TouchableOpacity onPress={resetQuiz} style={{ marginRight: 16 }}>
+            <View style={{ padding: 8, backgroundColor: 'rgba(124,92,255,0.1)', borderRadius: 12 }}>
+              <BackIcon size={18} color="#7C5CFF" />
             </View>
+          </TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: '#7C5CFF', fontSize: 10, fontWeight: 'bold', textTransform: 'uppercase' }}>
+              {activeQuiz.subject}
+            </Text>
+            <Text style={{ color: 'white', fontSize: 16, fontWeight: 'bold', marginTop: 2 }}>
+              {activeQuiz.title}
+            </Text>
           </View>
-        </FadeInUp>
+        </View>
 
         {!showResult ? (
-          <ScrollView className="flex-1 px-5 pt-5" contentContainerStyle={{ paddingBottom: 24 }}>
-            {/* Progress indicator */}
-            <FadeInUp delay={100}>
-              <View className="flex-row justify-between items-center mb-2">
-                <Text className="text-[9px] text-textLight font-extrabold uppercase tracking-wider">
-                  Question {currentQuestionIdx + 1} of {activeQuiz.questions.length}
+          <>
+            {/* Progress Bar */}
+            <View style={{ padding: 20, paddingBottom: 0 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                <Text style={{ color: '#9CA3AF', fontSize: 11 }}>
+                  Question {currentQuestionIdx + 1} of {totalQuestions}
                 </Text>
-                <Text className="text-[9px] font-extrabold text-accent">{percentage}% Completed</Text>
+                <Text style={{ color: '#7C5CFF', fontSize: 11, fontWeight: 'bold' }}>
+                  {Math.round(progress)}%
+                </Text>
               </View>
-              <View className="mb-6">
-                <AnimatedProgressBar progress={currentQuestionIdx / activeQuiz.questions.length} color={Colors.accent} height={6} />
+              <View style={{ backgroundColor: '#374151', height: 6, borderRadius: 3, overflow: 'hidden' }}>
+                <View
+                  style={{
+                    width: `${progress}%`,
+                    height: '100%',
+                    backgroundColor: '#7C5CFF',
+                    borderRadius: 3,
+                  }}
+                />
               </View>
-            </FadeInUp>
+            </View>
 
-            {/* Question Text */}
-            <FadeInUp delay={180}>
-              <AppCard className="mb-6 bg-white border border-primary/20 p-5 shadow-sm shadow-primary/5 rounded-3xl">
-                <Text className="text-xs font-extrabold text-textDark leading-5">{currentQuestion.questionText}</Text>
-              </AppCard>
-            </FadeInUp>
+            {/* Question and Options - with button inside scrollview right after options */}
+            <ScrollView 
+              ref={scrollViewRef}
+              style={{ flex: 1 }}
+              contentContainerStyle={{ padding: 20, paddingBottom: 20 }}
+              showsVerticalScrollIndicator={false}
+            >
+              {/* Question Card */}
+              <View
+                style={{
+                  backgroundColor: '#1F2937',
+                  borderRadius: 20,
+                  padding: 24,
+                  marginBottom: 24,
+                }}
+              >
+                <Text style={{ color: 'white', fontSize: 16, fontWeight: 'bold', lineHeight: 24 }}>
+                  {currentQuestion.text}
+                </Text>
+              </View>
 
-            {/* Options list */}
-            <View className="mb-6">
-              {currentQuestion.options.map((option, idx) => {
-                let borderStyle = "border-primary/20 bg-white/70";
-                let textStyle = "text-textDark font-semibold";
-                let accessory = null;
+              {/* Options */}
+              {currentQuestion.options.map((option: string, idx: number) => {
+                let optionBgColor = '#1F2937';
+                let borderColor = 'rgba(124,92,255,0.2)';
+                let textColor = '#D1D5DB';
+                let isCorrect = false;
+                let isWrong = false;
 
                 if (selectedOptionIdx === idx) {
-                  borderStyle = "border-accent bg-accent/5 shadow-sm shadow-accent/10";
-                  textStyle = "text-accent font-extrabold";
+                  optionBgColor = 'rgba(124,92,255,0.1)';
+                  borderColor = '#7C5CFF';
+                  textColor = '#7C5CFF';
                 }
 
                 if (isAnswerChecked) {
-                  const correctIdx = currentQuestion.correctAnswerIndex;
-                  if (idx === correctIdx) {
-                    borderStyle = "border-success bg-success/5 shadow-sm shadow-success/10";
-                    textStyle = "text-success font-extrabold";
-                    accessory = <CheckIcon size={12} color={Colors.success} />;
-                  } else if (selectedOptionIdx === idx) {
-                    borderStyle = "border-error bg-error/5 shadow-sm shadow-error/10";
-                    textStyle = "text-error font-extrabold";
+                  if (idx === currentQuestion.correct) {
+                    optionBgColor = 'rgba(16,185,129,0.1)';
+                    borderColor = '#10B981';
+                    textColor = '#10B981';
+                    isCorrect = true;
+                  } else if (selectedOptionIdx === idx && idx !== currentQuestion.correct) {
+                    optionBgColor = 'rgba(239,68,68,0.1)';
+                    borderColor = '#EF4444';
+                    textColor = '#EF4444';
+                    isWrong = true;
                   }
                 }
 
                 return (
-                  <FadeInUp key={idx} delay={200 + idx * 80}>
-                    <BouncyPressable onPress={() => handleOptionSelect(idx)}>
-                      <View className={`border rounded-2xl p-4 mb-3 flex-row items-center justify-between shadow-sm shadow-textDark/5 ${borderStyle}`}>
-                        <Text className={`text-[10px] flex-1 ${textStyle}`}>{option}</Text>
-                        {accessory}
-                      </View>
-                    </BouncyPressable>
-                  </FadeInUp>
+                  <TouchableOpacity
+                    key={idx}
+                    onPress={() => handleOptionSelect(idx)}
+                    disabled={isAnswerChecked}
+                    activeOpacity={0.7}
+                  >
+                    <View
+                      style={{
+                        backgroundColor: optionBgColor,
+                        borderWidth: 1.5,
+                        borderColor: borderColor,
+                        borderRadius: 16,
+                        padding: 16,
+                        marginBottom: 12,
+                        flexDirection: 'row',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Text style={{ color: textColor, fontSize: 13, flex: 1 }}>
+                        {option}
+                      </Text>
+                      {isCorrect && <CheckIcon size={16} color="#10B981" />}
+                      {isWrong && <Text style={{ color: '#EF4444', fontSize: 18 }}>✗</Text>}
+                    </View>
+                  </TouchableOpacity>
                 );
               })}
-            </View>
-          </ScrollView>
-        ) : (
-          /* Result view */
-          <View className="flex-grow justify-center items-center px-6">
-            <FadeInUp delay={100}>
-              <View className="w-20 h-20 bg-success/15 rounded-full items-center justify-center mb-5 border border-success/30 shadow-md shadow-success/15">
-                <CheckIcon size={32} color={Colors.success} />
+
+              {/* Button - RIGHT AFTER the 4th option, inside ScrollView */}
+              <View style={{ marginTop: 16, marginBottom: 40 }}>
+                {!isAnswerChecked ? (
+                  <TouchableOpacity
+                    onPress={handleCheckAnswer}
+                    disabled={selectedOptionIdx === null}
+                    style={{
+                      backgroundColor: selectedOptionIdx === null ? '#374151' : '#7C5CFF',
+                      paddingVertical: 14,
+                      borderRadius: 12,
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Text style={{ color: 'white', fontSize: 14, fontWeight: 'bold' }}>
+                      Check Answer
+                    </Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    onPress={handleNextQuestion}
+                    style={{
+                      backgroundColor: '#7C5CFF',
+                      paddingVertical: 14,
+                      borderRadius: 12,
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Text style={{ color: 'white', fontSize: 14, fontWeight: 'bold' }}>
+                      {currentQuestionIdx + 1 === totalQuestions ? 'Submit Quiz' : 'Next Question'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
-            </FadeInUp>
-            <FadeInUp delay={200}>
-              <Text className="text-sm font-extrabold text-textDark tracking-tight uppercase">Assessment Completed</Text>
-              <Text className="text-[10px] text-textLight font-semibold mt-1 mb-6">Your responses have been processed.</Text>
-            </FadeInUp>
-
-            <FadeInUp delay={300} style={{ width: "100%" }}>
-              <AppCard className="w-full mb-8 p-6 items-center bg-white border border-primary/20 shadow-lg shadow-primary/10 rounded-3xl">
-                <Text className="text-[10px] font-extrabold text-textLight uppercase tracking-widest">Mastery Level Score</Text>
-                <Text className="text-4xl font-black text-accent my-2.5">{Math.round((score / activeQuiz.questions.length) * 100)}%</Text>
-                <Text className="text-[9px] text-textLight font-bold uppercase tracking-wider">{score} out of {activeQuiz.questions.length} correct</Text>
-              </AppCard>
-            </FadeInUp>
-
-            <FadeInUp delay={400} style={{ width: "100%" }}>
-              <AppButton title="Finish & Go Back" onPress={() => setActiveQuiz(null)} variant="primary" className="py-3" />
-            </FadeInUp>
-          </View>
-        )}
-
-        {!showResult && (
-          <FadeInUp delay={100}>
-            <View className="px-5 py-5 border-t border-primary/10 bg-white shadow-lg shadow-textDark/5">
-              {!isAnswerChecked ? (
-                <AppButton
-                  title="Verify Response"
-                  onPress={handleCheckAnswer}
-                  disabled={selectedOptionIdx === null}
-                  variant="accent"
-                  className="py-3"
-                />
-              ) : (
-                <AppButton
-                  title={currentQuestionIdx + 1 === activeQuiz.questions.length ? "Submit Score" : "Next Question"}
-                  onPress={handleNextQuestion}
-                  variant="accent"
-                  className="py-3"
-                />
-              )}
+            </ScrollView>
+          </>
+        ) : (
+          // Result Screen
+          <ScrollView 
+            style={{ flex: 1 }} 
+            contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 20 }}
+          >
+            <View
+              style={{
+                backgroundColor: 'rgba(16,185,129,0.1)',
+                width: 80,
+                height: 80,
+                borderRadius: 40,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 24,
+                borderWidth: 1,
+                borderColor: 'rgba(16,185,129,0.3)',
+                alignSelf: 'center',
+              }}
+            >
+              <CheckIcon size={40} color="#10B981" />
             </View>
-          </FadeInUp>
+
+            <Text style={{ color: 'white', fontSize: 20, fontWeight: 'bold', marginBottom: 8, textAlign: 'center' }}>
+              Quiz Completed!
+            </Text>
+            <Text style={{ color: '#9CA3AF', fontSize: 12, marginBottom: 24, textAlign: 'center' }}>
+              You've successfully completed the quiz
+            </Text>
+
+            <View
+              style={{
+                backgroundColor: '#1F2937',
+                borderRadius: 20,
+                padding: 24,
+                alignItems: 'center',
+                width: '100%',
+                marginBottom: 24,
+              }}
+            >
+              <Text style={{ color: '#9CA3AF', fontSize: 11, textTransform: 'uppercase', marginBottom: 8 }}>
+                Your Score
+              </Text>
+              <Text style={{ color: '#7C5CFF', fontSize: 48, fontWeight: 'bold', marginBottom: 8 }}>
+                {Math.round((score / totalQuestions) * 100)}%
+              </Text>
+              <Text style={{ color: '#D1D5DB', fontSize: 13 }}>
+                {score} out of {totalQuestions} correct
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              onPress={resetQuiz}
+              style={{
+                backgroundColor: '#7C5CFF',
+                paddingVertical: 14,
+                borderRadius: 12,
+                alignItems: 'center',
+              }}
+            >
+              <Text style={{ color: 'white', fontSize: 14, fontWeight: 'bold' }}>
+                Back to Quizzes
+              </Text>
+            </TouchableOpacity>
+          </ScrollView>
         )}
       </View>
     );
@@ -216,99 +439,159 @@ export const TestsScreen: React.FC<TestsScreenProps> = () => {
 
   // 2. Default Quizzes List View
   return (
-    <ScrollView className="flex-1 bg-background" contentContainerStyle={{ paddingBottom: 32 }}>
-      <View className="px-5 pt-8 pb-3">
-        <FadeInUp delay={50}>
-          <Text className="text-sm font-black text-textDark tracking-tight uppercase">Module Evaluations</Text>
-          <Text className="text-[10px] text-textLight mt-0.5 mb-5 font-semibold">
-            Evaluate your knowledge using interactive test papers.
-          </Text>
-        </FadeInUp>
-
-        {/* Search */}
-        <FadeInUp delay={120}>
-          <View className="bg-white border border-primary/20 rounded-2xl px-4 py-3 flex-row items-center mb-5 shadow-sm shadow-primary/5">
-            <SearchIcon size={14} color={Colors.textLight + "80"} />
-            <TextInput
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholder="Search tests or subjects..."
-              placeholderTextColor={Colors.textLight + "80"}
-              className="flex-1 text-xs text-textDark p-0 font-medium ml-2.5"
-            />
-          </View>
-        </FadeInUp>
-
-        {/* Filter chips */}
-        <FadeInUp delay={180}>
-          <View className="flex-row mb-6">
-            {(["all", "pending", "completed"] as const).map((t) => (
-              <BouncyPressable key={t} onPress={() => setFilter(t)}>
-                <View className={`mr-2.5 px-4 py-1.5 rounded-full border ${filter === t ? "bg-accent border-accent shadow-md shadow-accent/20" : "bg-white border-primary/20"}`}>
-                  <Text className={`text-[9px] font-extrabold uppercase tracking-wider ${filter === t ? "text-white" : "text-textLight"}`}>
-                    {t}
-                  </Text>
-                </View>
-              </BouncyPressable>
-            ))}
-          </View>
-        </FadeInUp>
-
-        {/* Quiz list */}
-        <View className="mb-4">
-          {filteredQuizzes.length > 0 ? (
-            filteredQuizzes.map(({ quiz, subject }, index) => (
-              <FadeInUp key={quiz.id} delay={250 + index * 80}>
-                <BouncyPressable onPress={() => startQuiz(quiz, subject)}>
-                  <View className="bg-white/90 border border-primary/20 rounded-3xl p-4.5 mb-4 flex-row items-center shadow-sm shadow-primary/5">
-                    {/* Circle icon marker */}
-                    <View 
-                      className="w-11 h-11 rounded-2xl items-center justify-center mr-4 border border-white"
-                      style={{ backgroundColor: `${subject.color}12` }}
-                    >
-                      <View className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: subject.color }} />
-                    </View>
-
-                    <View className="flex-1 mr-2">
-                      <View className="flex-row items-center mb-1">
-                        <View className="px-2 py-0.5 rounded-md border" style={{ borderColor: `${subject.color}25`, backgroundColor: `${subject.color}05` }}>
-                          <Text className="text-[7px] font-extrabold uppercase tracking-widest" style={{ color: subject.color }}>{subject.title}</Text>
-                        </View>
-                        <Text className="text-[8px] text-textLight font-bold ml-2">• {quiz.questions.length} items</Text>
-                      </View>
-                      <Text className="text-xs font-extrabold text-textDark mb-0.5 tracking-tight">{quiz.title}</Text>
-                      
-                      {quiz.completed ? (
-                        <View className="flex-row items-center mt-1">
-                          <CheckIcon size={10} color={Colors.success} />
-                          <Text className="text-[9px] text-success font-extrabold ml-1">Score: {quiz.score}%</Text>
-                        </View>
-                      ) : (
-                        <View className="flex-row items-center mt-1">
-                          <ClockIcon size={9} color={Colors.textLight} />
-                          <Text className="text-[9px] text-textLight font-semibold ml-1">Not Completed</Text>
-                        </View>
-                      )}
-                    </View>
-
-                    {/* Action Arrow */}
-                    <View className="w-8 h-8 rounded-full bg-primary/25 items-center justify-center border border-primary/30">
-                      <ArrowRightIcon size={11} color={Colors.textDark} />
-                    </View>
-                  </View>
-                </BouncyPressable>
-              </FadeInUp>
-            ))
-          ) : (
-            <FadeInUp delay={200}>
-              <View className="py-12 items-center">
-                <Text className="text-xs text-textLight font-semibold">No tests match your selection.</Text>
-              </View>
-            </FadeInUp>
-          )}
-        </View>
+    <View style={{ flex: 1, backgroundColor: '#0F172A' }}>
+      {/* Header */}
+      <View
+        style={{
+          backgroundColor: '#1F2937',
+          paddingTop: Platform.OS === 'ios' ? 44 : 24,
+          paddingBottom: 16,
+          paddingHorizontal: 20,
+          borderBottomWidth: 1,
+          borderBottomColor: 'rgba(124,92,255,0.2)',
+        }}
+      >
+        <Text style={{ color: '#7C5CFF', fontSize: 10, fontWeight: 'bold', textTransform: 'uppercase', marginBottom: 4 }}>
+          Test Your Knowledge
+        </Text>
+        <Text style={{ color: 'white', fontSize: 24, fontWeight: 'bold' }}>
+          Module Tests
+        </Text>
+        <Text style={{ color: '#9CA3AF', fontSize: 12, marginTop: 4 }}>
+          Complete quizzes to earn certificates
+        </Text>
       </View>
-    </ScrollView>
+
+      <Animated.ScrollView
+        showsVerticalScrollIndicator={false}
+        style={{ flex: 1, opacity: fadeAnim }}
+        contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
+      >
+        {/* Search Bar */}
+        <View
+          style={{
+            backgroundColor: '#1F2937',
+            borderRadius: 12,
+            paddingHorizontal: 16,
+            paddingVertical: 12,
+            flexDirection: 'row',
+            alignItems: 'center',
+            marginBottom: 16,
+          }}
+        >
+          <SearchIcon size={18} color="#6B7280" />
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search quizzes..."
+            placeholderTextColor="#6B7280"
+            style={{ flex: 1, marginLeft: 12, color: 'white', fontSize: 14 }}
+          />
+        </View>
+
+        {/* Filter Chips */}
+        <View style={{ flexDirection: 'row', marginBottom: 20 }}>
+          {(['all', 'pending', 'completed'] as const).map((filterType) => (
+            <TouchableOpacity
+              key={filterType}
+              onPress={() => setFilter(filterType)}
+              style={{
+                backgroundColor: filter === filterType ? '#7C5CFF' : '#1F2937',
+                paddingHorizontal: 16,
+                paddingVertical: 8,
+                borderRadius: 20,
+                marginRight: 10,
+              }}
+            >
+              <Text
+                style={{
+                  color: filter === filterType ? 'white' : '#9CA3AF',
+                  fontSize: 11,
+                  fontWeight: 'bold',
+                  textTransform: 'capitalize',
+                }}
+              >
+                {filterType}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Results Count */}
+        <Text style={{ color: '#6B7280', fontSize: 12, marginBottom: 12 }}>
+          {filteredQuizzes.length} tests available
+        </Text>
+
+        {/* Quiz Cards */}
+        {filteredQuizzes.map((quiz) => (
+          <TouchableOpacity key={quiz.id} onPress={() => startQuiz(quiz)} activeOpacity={0.8}>
+            <View
+              style={{
+                backgroundColor: '#1F2937',
+                borderRadius: 20,
+                padding: 16,
+                marginBottom: 12,
+                flexDirection: 'row',
+                alignItems: 'center',
+              }}
+            >
+              <View
+                style={{
+                  backgroundColor: quiz.subjectColor,
+                  width: 52,
+                  height: 52,
+                  borderRadius: 16,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: 16,
+                }}
+              >
+                <QuizIcon size={24} color="white" />
+              </View>
+
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={{ color: '#7C5CFF', fontSize: 10, fontWeight: 'bold', textTransform: 'uppercase' }}>
+                    {quiz.subject}
+                  </Text>
+                  {quiz.completed && (
+                    <View style={{ backgroundColor: '#10B981', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 }}>
+                      <Text style={{ color: 'white', fontSize: 9, fontWeight: 'bold' }}>{quiz.score}%</Text>
+                    </View>
+                  )}
+                </View>
+                
+                <Text style={{ color: 'white', fontSize: 15, fontWeight: 'bold', marginTop: 4, marginBottom: 4 }}>
+                  {quiz.title}
+                </Text>
+                
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <QuizIcon size={12} color="#6B7280" />
+                  <Text style={{ color: '#6B7280', fontSize: 11, marginLeft: 6 }}>
+                    {quiz.questions.length} questions
+                  </Text>
+                  {!quiz.completed && (
+                    <>
+                      <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: '#6B7280', marginHorizontal: 8 }} />
+                      <ClockIcon size={12} color="#6B7280" />
+                      <Text style={{ color: '#6B7280', fontSize: 11, marginLeft: 6 }}>Not started</Text>
+                    </>
+                  )}
+                </View>
+              </View>
+            </View>
+          </TouchableOpacity>
+        ))}
+
+        {/* Empty State */}
+        {filteredQuizzes.length === 0 && (
+          <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+            <Text style={{ color: '#6B7280', fontSize: 14 }}>No quizzes found</Text>
+            <Text style={{ color: '#4B5563', fontSize: 12, marginTop: 8 }}>Try a different search term</Text>
+          </View>
+        )}
+      </Animated.ScrollView>
+    </View>
   );
 };
 
