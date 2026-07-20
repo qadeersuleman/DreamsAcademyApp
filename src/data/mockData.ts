@@ -115,4 +115,5 @@ export const MOCK_USER = {
   enrolledCourses: ["1", "2", "3"],
   completedLessons: 2,
   totalPoints: 450,
+  enrolledDate: "March 2026",
 };

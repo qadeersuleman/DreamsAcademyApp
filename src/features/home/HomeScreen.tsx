@@ -1,8 +1,7 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
-  ScrollView,
   Image,
   TouchableOpacity,
   RefreshControl,
@@ -10,91 +9,105 @@ import {
   Share,
   Platform,
   Dimensions,
-  FlatList,
+  StyleSheet,
 } from "react-native";
 import Svg, { Path, Circle, Line, Polyline, Rect } from "react-native-svg";
+import { YouTubeVideosScreen } from "../youtube/YouTubeVideosScreen";
 
-const { width, height } = Dimensions.get("window");
+const { width } = Dimensions.get("window");
 
 interface HomeProps {
   onNavigateToTab: (tabIndex: number) => void;
   onSelectSubject: (subject: any) => void;
 }
 
-// ======================== CUSTOM ICONS ========================
+// ======================== ENHANCED CUSTOM ICONS ========================
 
 const PlayIcon: React.FC<{ size: number; color: string }> = ({ size, color }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Circle cx="12" cy="12" r="10" stroke={color} strokeWidth="2"/>
-    <Path d="M10 8l6 4-6 4V8z" fill={color}/>
+    <Circle cx="12" cy="12" r="11" stroke={color} strokeWidth="1.5" fill="rgba(255,255,255,0.1)"/>
+    <Path d="M9.5 7.5l8 4.5-8 4.5V7.5z" fill={color}/>
   </Svg>
 );
 
 const FileTextIcon: React.FC<{ size: number; color: string }> = ({ size, color }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke={color} strokeWidth="2"/>
-    <Polyline points="14 2 14 8 20 8" stroke={color} strokeWidth="2"/>
-    <Line x1="16" y1="13" x2="8" y2="13" stroke={color} strokeWidth="2"/>
-    <Line x1="16" y1="17" x2="8" y2="17" stroke={color} strokeWidth="2"/>
+    <Path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke={color} strokeWidth="1.5" strokeLinejoin="round"/>
+    <Polyline points="14 2 14 8 20 8" stroke={color} strokeWidth="1.5"/>
+    <Line x1="16" y1="13" x2="8" y2="13" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
+    <Line x1="16" y1="17" x2="8" y2="17" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
   </Svg>
 );
 
 const QuizIcon: React.FC<{ size: number; color: string }> = ({ size, color }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Circle cx="12" cy="12" r="10" stroke={color} strokeWidth="2"/>
-    <Path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" stroke={color} strokeWidth="2"/>
-    <Line x1="12" y1="17" x2="12.01" y2="17" stroke={color} strokeWidth="2"/>
+    <Circle cx="12" cy="12" r="11" stroke={color} strokeWidth="1.5" fill="rgba(255,255,255,0.1)"/>
+    <Path d="M9.5 9.5a3 3 0 0 1 5 1c0 1.5-2.5 2.5-2.5 2.5" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
+    <Circle cx="12" cy="17" r="0.8" fill={color}/>
   </Svg>
 );
 
 const ArrowRightIcon: React.FC<{ size: number; color: string }> = ({ size, color }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Line x1="5" y1="12" x2="19" y2="12" stroke={color} strokeWidth="2"/>
-    <Polyline points="12 5 19 12 12 19" stroke={color} strokeWidth="2"/>
+    <Circle cx="12" cy="12" r="11" stroke={color} strokeWidth="1.5" fill="rgba(255,255,255,0.1)"/>
+    <Polyline points="10 8 14 12 10 16" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
   </Svg>
 );
 
-// Science Icon
 const ScienceIcon: React.FC<{ size: number; color: string }> = ({ size, color }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" stroke={color} strokeWidth="2" strokeLinecap="round"/>
-    <Circle cx="12" cy="12" r="3" stroke={color} strokeWidth="2"/>
+    <Circle cx="12" cy="12" r="11" stroke={color} strokeWidth="1.5" fill="rgba(255,255,255,0.1)"/>
+    <Path d="M8 12h8M12 8v8" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
+    <Circle cx="12" cy="12" r="3" stroke={color} strokeWidth="1.5"/>
+    <Path d="M12 2l2 4M12 22l-2-4M2 12l4-2M22 12l-4 2" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
   </Svg>
 );
 
-// Math Icon (Function/Formula)
 const MathIcon: React.FC<{ size: number; color: string }> = ({ size, color }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Path d="M5 5h14M5 12h14M5 19h14" stroke={color} strokeWidth="2" strokeLinecap="round"/>
-    <Path d="M12 5v14" stroke={color} strokeWidth="2" strokeLinecap="round"/>
-    <Path d="M16 8l-4 4 4 4" stroke={color} strokeWidth="2" strokeLinecap="round"/>
+    <Circle cx="12" cy="12" r="11" stroke={color} strokeWidth="1.5" fill="rgba(255,255,255,0.1)"/>
+    <Path d="M7 7l5 5m0 0l5 5m-5-5L7 17m5-5l5-5" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
   </Svg>
 );
 
-// Chemistry Icon (Flask)
 const ChemistryIcon: React.FC<{ size: number; color: string }> = ({ size, color }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Path d="M10 2v7.31M14 2v7.31M8 12h8" stroke={color} strokeWidth="2" strokeLinecap="round"/>
-    <Path d="M8 12c-2 0-3 3-3 5 0 1.5 1 3 3 3h8c2 0 3-1.5 3-3 0-2-1-5-3-5" stroke={color} strokeWidth="2" strokeLinecap="round"/>
-    <Path d="M12 2v2" stroke={color} strokeWidth="2" strokeLinecap="round"/>
+    <Circle cx="12" cy="12" r="11" stroke={color} strokeWidth="1.5" fill="rgba(255,255,255,0.1)"/>
+    <Path d="M10 2v6l-4 8c-1 2 0 4 2 4h8c2 0 3-2 2-4l-4-8V2" stroke={color} strokeWidth="1.5" strokeLinejoin="round"/>
+    <Line x1="8" y1="14" x2="16" y2="14" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
   </Svg>
 );
 
-// Physics Icon (Atom)
 const PhysicsIcon: React.FC<{ size: number; color: string }> = ({ size, color }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Circle cx="12" cy="12" r="3" stroke={color} strokeWidth="2"/>
-    <Path d="M12 5c-3 0-7 2-7 7s4 7 7 7c3 0 7-2 7-7s-4-7-7-7z" stroke={color} strokeWidth="2"/>
-    <Path d="M12 5c-1 0-3 2-3 7s2 7 3 7c1 0 3-2 3-7s-2-7-3-7z" stroke={color} strokeWidth="2"/>
+    <Circle cx="12" cy="12" r="11" stroke={color} strokeWidth="1.5" fill="rgba(255,255,255,0.1)"/>
+    <Circle cx="12" cy="12" r="2" fill={color}/>
+    <Path d="M12 2a10 10 0 0 1 0 20" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
+    <Path d="M12 2a10 10 0 0 0 0 20" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
+    <Path d="M2 12h20" stroke={color} strokeWidth="1" strokeDasharray="2 2"/>
   </Svg>
 );
 
-// Computer Icon
 const ComputerIcon: React.FC<{ size: number; color: string }> = ({ size, color }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Rect x="4" y="2" width="16" height="14" rx="2" stroke={color} strokeWidth="2"/>
-    <Path d="M8 20h8M12 16v4" stroke={color} strokeWidth="2"/>
-    <Line x1="4" y1="6" x2="20" y2="6" stroke={color} strokeWidth="2"/>
+    <Circle cx="12" cy="12" r="11" stroke={color} strokeWidth="1.5" fill="rgba(255,255,255,0.1)"/>
+    <Rect x="6" y="8" width="12" height="8" rx="1" stroke={color} strokeWidth="1.5"/>
+    <Line x1="10" y1="16" x2="14" y2="16" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
+    <Line x1="12" y1="14" x2="12" y2="12" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
+  </Svg>
+);
+
+const StarIcon: React.FC<{ size: number; color: string }> = ({ size, color }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+    <Path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+  </Svg>
+);
+
+const TrophyIcon: React.FC<{ size: number; color: string }> = ({ size, color }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path d="M6 9H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h2M18 9h2a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-2" stroke={color} strokeWidth="1.5"/>
+    <Path d="M6 3h12v6a6 6 0 1 1-12 0V3z" stroke={color} strokeWidth="1.5"/>
+    <Path d="M9 21h6M12 18v3" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
   </Svg>
 );
 
@@ -106,7 +119,8 @@ const SUBJECTS = [
     title: "General Science",
     description: "Basic concepts of science, experiments, and scientific methods",
     icon: "science",
-    color: "#3B82F6",
+    color: "#4F46E5",
+    gradientColors: ["#4F46E5", "#7C3AED"],
     lessons: [
       { id: "s1", title: "Introduction to Science", duration: "15 mins", completed: false, type: "video" },
       { id: "s2", title: "Scientific Method", duration: "20 mins", completed: false, type: "note" },
@@ -116,9 +130,10 @@ const SUBJECTS = [
   {
     id: "2",
     title: "Mathematics",
-    description: "Algebra, Geometry, Calculus, and problem solving techniques",
+    description: "Algebra, Geometry, Calculus, and problem solving",
     icon: "math",
-    color: "#10B981",
+    color: "#059669",
+    gradientColors: ["#059669", "#10B981"],
     lessons: [
       { id: "m1", title: "Algebra Basics", duration: "25 mins", completed: true, type: "video" },
       { id: "m2", title: "Geometry Fundamentals", duration: "30 mins", completed: false, type: "note" },
@@ -130,7 +145,8 @@ const SUBJECTS = [
     title: "Chemistry",
     description: "Elements, compounds, chemical reactions, and periodic table",
     icon: "chemistry",
-    color: "#F59E0B",
+    color: "#D97706",
+    gradientColors: ["#D97706", "#F59E0B"],
     lessons: [
       { id: "c1", title: "Atoms and Molecules", duration: "20 mins", completed: false, type: "video" },
       { id: "c2", title: "Periodic Table", duration: "25 mins", completed: false, type: "note" },
@@ -142,7 +158,8 @@ const SUBJECTS = [
     title: "Physics",
     description: "Motion, energy, force, electricity, and modern physics",
     icon: "physics",
-    color: "#EF4444",
+    color: "#DC2626",
+    gradientColors: ["#DC2626", "#EF4444"],
     lessons: [
       { id: "p1", title: "Laws of Motion", duration: "30 mins", completed: false, type: "video" },
       { id: "p2", title: "Energy & Work", duration: "20 mins", completed: false, type: "note" },
@@ -154,7 +171,8 @@ const SUBJECTS = [
     title: "Computer Basics",
     description: "Hardware, software, programming basics, and digital literacy",
     icon: "computer",
-    color: "#8B5CF6",
+    color: "#7C3AED",
+    gradientColors: ["#7C3AED", "#8B5CF6"],
     lessons: [
       { id: "pc1", title: "Computer Hardware", duration: "15 mins", completed: true, type: "video" },
       { id: "pc2", title: "Software Basics", duration: "20 mins", completed: false, type: "note" },
@@ -165,9 +183,9 @@ const SUBJECTS = [
 
 const DEFAULT_USER = {
   id: "1",
-  name: "Student",
+  name: "Ahmed Khan",
   email: "student@example.com",
-  avatar: "https://ui-avatars.com/api/?background=7C5CFF&color=fff&name=Student",
+  avatar: "https://ui-avatars.com/api/?background=7C5CFF&color=fff&name=Ahmed+Khan&size=128",
 };
 
 // ======================== COMPONENTS ========================
@@ -176,13 +194,14 @@ const QuickActionButton: React.FC<{
   icon: React.ReactNode;
   label: string;
   color: string;
+  badge?: string;
   onPress: () => void;
-}> = ({ icon, label, color, onPress }) => {
+}> = ({ icon, label, color, badge, onPress }) => {
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
-      toValue: 0.95,
+      toValue: 0.9,
       useNativeDriver: true,
       tension: 100,
       friction: 10,
@@ -196,42 +215,27 @@ const QuickActionButton: React.FC<{
       tension: 100,
       friction: 10,
     }).start();
-    onPress();
   };
 
   return (
     <TouchableOpacity
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
+      onPress={onPress}
       activeOpacity={0.9}
+      delayPressIn={0}
+      style={{ alignItems: 'center', width: (width - 60) / 3 }}
     >
-      <Animated.View
-        style={{
-          alignItems: 'center',
-          transform: [{ scale: scaleAnim }],
-        }}
-      >
-        <View
-          style={{
-            backgroundColor: color,
-            width: 56,
-            height: 56,
-            borderRadius: 28,
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginBottom: 8,
-            shadowColor: color,
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.3,
-            shadowRadius: 8,
-            elevation: 4,
-          }}
-        >
+      <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+        <View style={[styles.quickActionIcon, { backgroundColor: color }]}>
           {icon}
+          {badge && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{badge}</Text>
+            </View>
+          )}
         </View>
-        <Text style={{ fontSize: 11, fontWeight: '600', color: '#9CA3AF' }}>
-          {label}
-        </Text>
+        <Text style={styles.quickActionLabel}>{label}</Text>
       </Animated.View>
     </TouchableOpacity>
   );
@@ -264,87 +268,73 @@ const CourseCard: React.FC<{
       tension: 100,
       friction: 10,
     }).start();
-    onPress();
   };
 
   const renderIcon = () => {
     const iconColor = "white";
+    const iconProps = { size: 26, color: iconColor };
     switch (subject?.icon) {
-      case "science":
-        return <ScienceIcon size={24} color={iconColor} />;
-      case "math":
-        return <MathIcon size={24} color={iconColor} />;
-      case "chemistry":
-        return <ChemistryIcon size={24} color={iconColor} />;
-      case "physics":
-        return <PhysicsIcon size={24} color={iconColor} />;
-      case "computer":
-        return <ComputerIcon size={24} color={iconColor} />;
-      default:
-        return <ScienceIcon size={24} color={iconColor} />;
+      case "science": return <ScienceIcon {...iconProps} />;
+      case "math": return <MathIcon {...iconProps} />;
+      case "chemistry": return <ChemistryIcon {...iconProps} />;
+      case "physics": return <PhysicsIcon {...iconProps} />;
+      case "computer": return <ComputerIcon {...iconProps} />;
+      default: return <ScienceIcon {...iconProps} />;
     }
+  };
+
+  const getProgressColor = () => {
+    if (progress >= 100) return '#10B981';
+    if (progress >= 50) return '#F59E0B';
+    return subject?.color || '#7C5CFF';
   };
 
   return (
     <TouchableOpacity
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      activeOpacity={0.9}
+      onPress={onPress}
+      activeOpacity={0.95}
+      delayPressIn={0}
+      style={{ marginBottom: 14 }}
     >
-      <Animated.View
-        style={{
-          backgroundColor: '#1F2937',
-          borderRadius: 20,
-          marginBottom: 12,
-          padding: 16,
-          flexDirection: 'row',
-          alignItems: 'center',
-          transform: [{ scale: scaleAnim }],
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 4,
-          elevation: 2,
-        }}
-      >
-        <View
-          style={{
-            backgroundColor: subject?.color || '#7C5CFF',
-            width: 52,
-            height: 52,
-            borderRadius: 16,
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginRight: 16,
-          }}
-        >
+      <Animated.View style={[styles.courseCard, { transform: [{ scale: scaleAnim }] }]}>
+        <View style={[styles.courseIconContainer, { backgroundColor: subject?.color || '#7C5CFF' }]}>
           {renderIcon()}
         </View>
 
-        <View style={{ flex: 1 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-            <Text style={{ fontSize: 15, fontWeight: '700', color: '#FFFFFF' }}>
+        <View style={styles.courseContent}>
+          <View style={styles.courseHeader}>
+            <Text style={styles.courseTitle} numberOfLines={1}>
               {subject?.title || 'Course'}
             </Text>
-            <Text style={{ fontSize: 10, fontWeight: '600', color: '#9CA3AF' }}>
-              {completedCount}/{totalLessonsCount}
-            </Text>
+            {progress === 100 && (
+              <View style={styles.completedBadge}>
+                <StarIcon size={12} color="#F59E0B" />
+                <Text style={styles.completedText}>Done!</Text>
+              </View>
+            )}
           </View>
           
-          <Text style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 8 }}>
+          <Text style={styles.courseDescription} numberOfLines={1}>
             {subject?.description || 'No description'}
           </Text>
 
-          <View style={{ backgroundColor: '#374151', height: 4, borderRadius: 2, overflow: 'hidden' }}>
-            <View
-              style={{
+          <View style={styles.progressContainer}>
+            <View style={styles.progressBar}>
+              <View style={[styles.progressFill, { 
                 width: `${progress}%`,
-                height: '100%',
-                backgroundColor: subject?.color || '#7C5CFF',
-                borderRadius: 2,
-              }}
-            />
+                backgroundColor: getProgressColor()
+              }]} />
+            </View>
+            <Text style={styles.progressText}>
+              {completedCount}/{totalLessonsCount} lessons
+            </Text>
           </View>
+        </View>
+
+        <View style={styles.arrowContainer}>
+          <ArrowRightIcon size={20} color="#6B7280" />
         </View>
       </Animated.View>
     </TouchableOpacity>
@@ -358,22 +348,31 @@ export const HomeScreen: React.FC<HomeProps> = ({
 }) => {
   const scrollY = useRef(new Animated.Value(0)).current;
   const [refreshing, setRefreshing] = useState(false);
+  const [showYouTube, setShowYouTube] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const greetingAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 600,
-      useNativeDriver: true,
-    }).start();
-  }, []);
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.spring(greetingAnim, {
+        toValue: 1,
+        tension: 50,
+        friction: 7,
+        useNativeDriver: true,
+      })
+    ]).start();
+  }, [fadeAnim, greetingAnim]);
 
   // Calculate stats
   const totalLessons = SUBJECTS.reduce((acc, sub) => acc + (sub?.lessons?.length || 0), 0);
   const completedLessons = SUBJECTS.reduce((acc, sub) => {
     const lessons = sub?.lessons || [];
-    const completed = lessons.filter((l: any) => l.completed === true).length;
-    return acc + completed;
+    return acc + lessons.filter((l: any) => l.completed === true).length;
   }, 0);
   const overallProgress = totalLessons > 0 ? (completedLessons / totalLessons) * 100 : 0;
 
@@ -391,15 +390,16 @@ export const HomeScreen: React.FC<HomeProps> = ({
     }
   }
 
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 1500);
-  };
+    await new Promise<void>(resolve => setTimeout(resolve, 1500));
+    setRefreshing(false);
+  }, []);
 
   const handleShareProgress = async () => {
     try {
       await Share.share({
-        message: `I've completed ${completedLessons} out of ${totalLessons} lessons on Dreams Academy! 🎓`,
+        message: `📚 I've completed ${completedLessons} out of ${totalLessons} lessons on Dreams Academy! Join me in learning! 🎓`,
       });
     } catch (error) {
       console.error(error);
@@ -407,88 +407,100 @@ export const HomeScreen: React.FC<HomeProps> = ({
   };
 
   const headerOpacity = scrollY.interpolate({
-    inputRange: [0, 80],
+    inputRange: [0, 100],
     outputRange: [1, 0.95],
     extrapolate: 'clamp',
   });
 
-  // Custom FlatList for smooth scrolling without automatic navigation
-  const renderCourseItem = ({ item }: { item: any }) => (
-    <CourseCard
-      subject={item}
-      onPress={() => onSelectSubject(item)}
-    />
-  );
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return '☀️ Good Morning';
+    if (hour < 17) return '🌤️ Good Afternoon';
+    return '🌙 Good Evening';
+  };
+
+  if (showYouTube) {
+    return <YouTubeVideosScreen onBack={() => setShowYouTube(false)} />;
+  }
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#0F172A' }}>
+    <View style={styles.container}>
       {/* Header */}
-      <Animated.View
-        style={{
-          backgroundColor: '#7C5CFF',
-          paddingTop: Platform.OS === 'ios' ? 44 : 24,
-          paddingBottom: 20,
-          paddingHorizontal: 20,
-          borderBottomLeftRadius: 24,
-          borderBottomRightRadius: 24,
-          opacity: headerOpacity,
-        }}
-      >
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <View>
-            <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12, fontWeight: '500' }}>
-              Welcome back,
-            </Text>
-            <Text style={{ color: 'white', fontSize: 22, fontWeight: 'bold', marginTop: 2 }}>
-              Student
-            </Text>
+      <Animated.View style={[styles.header, { opacity: headerOpacity }]}>
+        <View style={styles.headerTop}>
+          <View style={styles.headerLeft}>
+            <Animated.Text style={[styles.greeting, {
+              transform: [{ 
+                translateY: greetingAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [-20, 0]
+                })
+              }],
+              opacity: greetingAnim
+            }]}>
+              {getGreeting()} 👋
+            </Animated.Text>
+            <Text style={styles.studentName}>{DEFAULT_USER.name}</Text>
           </View>
           
-          <TouchableOpacity onPress={() => onNavigateToTab(4)}>
+          <TouchableOpacity 
+            onPress={() => onNavigateToTab(4)}
+            style={styles.avatarButton}
+            delayPressIn={0}
+          >
             <Image
               source={{ uri: DEFAULT_USER.avatar }}
-              style={{ width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: 'white' }}
+              style={styles.avatar}
             />
+            <View style={styles.onlineDot} />
           </TouchableOpacity>
         </View>
 
         {/* Progress Card */}
-        <View
-          style={{
-            backgroundColor: 'rgba(255,255,255,0.15)',
-            borderRadius: 16,
-            padding: 16,
-            marginTop: 20,
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-        >
-          <View>
-            <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 11, fontWeight: '500' }}>
-              Overall Progress
-            </Text>
-            <Text style={{ color: 'white', fontSize: 24, fontWeight: 'bold', marginTop: 4 }}>
-              {Math.round(overallProgress)}%
-            </Text>
-            <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 10, marginTop: 2 }}>
-              {completedLessons}/{totalLessons} lessons completed
-            </Text>
-          </View>
-          
-          <TouchableOpacity onPress={handleShareProgress}>
-            <View
-              style={{
-                backgroundColor: 'white',
-                paddingHorizontal: 12,
-                paddingVertical: 6,
-                borderRadius: 20,
-              }}
-            >
-              <Text style={{ color: '#7C5CFF', fontSize: 10, fontWeight: 'bold' }}>
-                Share Progress
+        <View style={styles.progressCard}>
+          <View style={styles.progressCardLeft}>
+            <View style={styles.progressCircle}>
+              <Svg width="70" height="70" viewBox="0 0 36 36">
+                <Path
+                  d="M18 2.0845
+                    a 15.9155 15.9155 0 0 1 0 31.831
+                    a 15.9155 15.9155 0 0 1 0 -31.831"
+                  fill="none"
+                  stroke="rgba(255,255,255,0.2)"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                />
+                <Path
+                  d="M18 2.0845
+                    a 15.9155 15.9155 0 0 1 0 31.831
+                    a 15.9155 15.9155 0 0 1 0 -31.831"
+                  fill="none"
+                  stroke="white"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeDasharray={`${overallProgress}, 100`}
+                />
+              </Svg>
+              <View style={styles.progressCircleText}>
+                <Text style={styles.progressPercentage}>
+                  {Math.round(overallProgress)}%
+                </Text>
+              </View>
+            </View>
+            <View style={styles.progressInfo}>
+              <Text style={styles.progressLabel}>Overall Progress</Text>
+              <Text style={styles.progressDetail}>
+                {completedLessons} of {totalLessons} lessons
               </Text>
             </View>
+          </View>
+          
+          <TouchableOpacity 
+            onPress={handleShareProgress}
+            style={styles.shareButton}
+            delayPressIn={0}
+          >
+            <Text style={styles.shareButtonText}>Share 🎉</Text>
           </TouchableOpacity>
         </View>
       </Animated.View>
@@ -498,7 +510,7 @@ export const HomeScreen: React.FC<HomeProps> = ({
         showsVerticalScrollIndicator={false}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: false }
+          { useNativeDriver: true }
         )}
         scrollEventThrottle={16}
         refreshControl={
@@ -507,63 +519,54 @@ export const HomeScreen: React.FC<HomeProps> = ({
             onRefresh={onRefresh}
             tintColor="#7C5CFF"
             colors={["#7C5CFF"]}
+            progressBackgroundColor="#1F2937"
           />
         }
         style={{ opacity: fadeAnim }}
+        contentContainerStyle={styles.scrollContent}
+        decelerationRate="normal"
+        scrollEnabled={true}
+        nestedScrollEnabled={true}
+        bounces={true}
+        overScrollMode="never"
       >
-        {/* Quick Actions - No auto navigation here */}
-        <View style={{ paddingHorizontal: 20, marginTop: 20 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginBottom: 24 }}>
+        {/* Quick Actions */}
+        <View style={styles.quickActionsContainer}>
+          <View style={styles.quickActionsRow}>
             <QuickActionButton
-              icon={<PlayIcon size={24} color="white" />}
-              label="Watch Videos"
-              color="#3B82F6"
-              onPress={() => onNavigateToTab(1)}
+              icon={<PlayIcon size={28} color="white" />}
+              label="Videos"
+              color="#4F46E5"
+              badge="New"
+              onPress={() => setShowYouTube(true)}
             />
             <QuickActionButton
-              icon={<FileTextIcon size={24} color="white" />}
-              label="Study Notes"
-              color="#10B981"
+              icon={<FileTextIcon size={28} color="white" />}
+              label="Notes"
+              color="#059669"
               onPress={() => onNavigateToTab(2)}
             />
             <QuickActionButton
-              icon={<QuizIcon size={24} color="white" />}
-              label="Take Quiz"
-              color="#F59E0B"
-              onPress={() => onNavigateToTab(3)}
+              icon={<QuizIcon size={28} color="white" />}
+              label="Quizzes"
+              color="#D97706"
+              onPress={() => onNavigateToTab(1)}
             />
           </View>
         </View>
 
-        {/* Continue Learning Banner - No auto navigation, requires explicit press */}
+        {/* Continue Learning Banner */}
         {nextLesson && nextCourse && (
-          <View style={{ paddingHorizontal: 20, marginBottom: 20 }}>
+          <View style={styles.continueLearningSection}>
+            <Text style={styles.sectionTitle}>📚 Continue Learning</Text>
             <TouchableOpacity
               onPress={() => onSelectSubject(nextCourse)}
-              style={{
-                backgroundColor: '#7C5CFF',
-                borderRadius: 16,
-                padding: 16,
-                shadowColor: '#7C5CFF',
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.3,
-                shadowRadius: 8,
-                elevation: 4,
-              }}
-              activeOpacity={0.8}
+              style={[styles.continueCard, { backgroundColor: nextCourse.color }]}
+              activeOpacity={0.9}
+              delayPressIn={0}
             >
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <View
-                  style={{
-                    backgroundColor: 'rgba(255,255,255,0.2)',
-                    width: 48,
-                    height: 48,
-                    borderRadius: 12,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginRight: 12,
-                  }}
-                >
+              <View style={styles.continueCardContent}>
+                <View style={styles.continueIconContainer}>
                   {nextLesson.type === "video" ? (
                     <PlayIcon size={24} color="white" />
                   ) : nextLesson.type === "note" ? (
@@ -572,90 +575,462 @@ export const HomeScreen: React.FC<HomeProps> = ({
                     <QuizIcon size={24} color="white" />
                   )}
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 10, fontWeight: '500' }}>
-                    Continue Learning
-                  </Text>
-                  <Text style={{ color: 'white', fontSize: 14, fontWeight: 'bold', marginTop: 2 }}>
+                <View style={styles.continueTextContainer}>
+                  <Text style={styles.continueLabel}>Next Up</Text>
+                  <Text style={styles.continueTitle} numberOfLines={1}>
                     {nextLesson?.title || 'Lesson'}
                   </Text>
-                  <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 11, marginTop: 2 }}>
-                    {nextCourse?.title || 'Course'}
+                  <Text style={styles.continueSubtitle} numberOfLines={1}>
+                    {nextCourse?.title || 'Course'} • {nextLesson?.duration || '0 min'}
                   </Text>
                 </View>
-                <ArrowRightIcon size={20} color="white" />
+                <View style={styles.continueArrow}>
+                  <ArrowRightIcon size={22} color="white" />
+                </View>
               </View>
             </TouchableOpacity>
           </View>
         )}
 
-        {/* My Courses Section - Using FlatList inside ScrollView for smooth, independent scrolling */}
-        <View style={{ paddingHorizontal: 20, paddingBottom: 32 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#FFFFFF' }}>
-              My Courses
-            </Text>
-            <TouchableOpacity onPress={() => onNavigateToTab(1)}>
-              <Text style={{ color: '#7C5CFF', fontSize: 12, fontWeight: '600' }}>
-                View All
-              </Text>
+        {/* My Courses Section */}
+        <View style={styles.coursesSection}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionTitleContainer}>
+              <TrophyIcon size={20} color="#F59E0B" />
+              <Text style={styles.sectionTitle}>My Courses</Text>
+            </View>
+            <TouchableOpacity 
+              onPress={() => onNavigateToTab(1)}
+              delayPressIn={0}
+            >
+              <Text style={styles.viewAllButton}>View All →</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Render courses with FlatList for optimal scrolling performance */}
-          {/* Each course opens ONLY when explicitly tapped - no auto-open */}
-          <FlatList
-            data={SUBJECTS}
-            renderItem={renderCourseItem}
-            keyExtractor={(item) => item.id}
-            scrollEnabled={false} // Let parent ScrollView handle scrolling
-            nestedScrollEnabled={true}
-            showsVerticalScrollIndicator={false}
-          />
+          {/* Render courses individually to prevent auto-navigation on scroll */}
+          {SUBJECTS.map((subject) => (
+            <CourseCard
+              key={subject.id}
+              subject={subject}
+              onPress={() => onSelectSubject(subject)}
+            />
+          ))}
         </View>
 
-        {/* Motivational Quote */}
-        <View style={{ paddingHorizontal: 20, marginBottom: 32 }}>
-          <View
-            style={{
-              backgroundColor: '#1E293B',
-              borderRadius: 20,
-              padding: 20,
-              alignItems: 'center',
-              borderWidth: 1,
-              borderColor: 'rgba(124,92,255,0.2)',
-            }}
-          >
-            <Text style={{ color: 'white', fontSize: 16, fontWeight: 'bold', marginBottom: 8 }}>
-              🎯 Ready to Learn?
-            </Text>
-            <Text style={{ color: '#94A3B8', fontSize: 12, textAlign: 'center', marginBottom: 16 }}>
-              Complete your lessons and earn certificates
+        {/* Motivational Banner */}
+        <View style={styles.motivationalSection}>
+          <View style={styles.motivationalCard}>
+            <Text style={styles.motivationalEmoji}>🎯</Text>
+            <Text style={styles.motivationalTitle}>Ready to Learn Something New?</Text>
+            <Text style={styles.motivationalText}>
+              Complete your lessons, earn certificates, and become a star student! ⭐
             </Text>
             <TouchableOpacity
-              onPress={() => onNavigateToTab(3)}
-              style={{
-                backgroundColor: '#F59E0B',
-                paddingHorizontal: 24,
-                paddingVertical: 10,
-                borderRadius: 25,
-                shadowColor: '#F59E0B',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.3,
-                shadowRadius: 4,
-                elevation: 3,
-              }}
-              activeOpacity={0.7}
+              onPress={() => onNavigateToTab(1)}
+              style={styles.startLearningButton}
+              activeOpacity={0.8}
+              delayPressIn={0}
             >
-              <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>
-                Start Learning
-              </Text>
+              <Text style={styles.startLearningText}>Start a Quiz →</Text>
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Bottom Padding */}
+        <View style={{ height: 40 }} />
       </Animated.ScrollView>
     </View>
   );
 };
+
+// ======================== STYLES ========================
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#0F172A',
+  },
+  header: {
+    backgroundColor: '#7C5CFF',
+    paddingTop: Platform.OS === 'ios' ? 50 : 30,
+    paddingBottom: 24,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    shadowColor: '#7C5CFF',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  headerLeft: {
+    flex: 1,
+  },
+  greeting: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  studentName: {
+    color: 'white',
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  avatarButton: {
+    position: 'relative',
+  },
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  onlineDot: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#10B981',
+    borderWidth: 2,
+    borderColor: 'white',
+  },
+  progressCard: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 20,
+    padding: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  progressCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  progressCircle: {
+    position: 'relative',
+    marginRight: 12,
+  },
+  progressCircleText: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  progressPercentage: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  progressInfo: {
+    flex: 1,
+  },
+  progressLabel: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  progressDetail: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 11,
+  },
+  shareButton: {
+    backgroundColor: 'white',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginLeft: 12,
+  },
+  shareButtonText: {
+    color: '#7C5CFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  scrollContent: {
+    paddingBottom: 20,
+  },
+  quickActionsContainer: {
+    paddingHorizontal: 15,
+    paddingTop: 20,
+    paddingBottom: 10,
+  },
+  quickActionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    backgroundColor: '#1F2937',
+    borderRadius: 20,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  quickActionIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+    position: 'relative',
+  },
+  quickActionLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#9CA3AF',
+    textAlign: 'center',
+  },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#EF4444',
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  badgeText: {
+    color: 'white',
+    fontSize: 8,
+    fontWeight: 'bold',
+  },
+  continueLearningSection: {
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 20,
+  },
+  continueCard: {
+    borderRadius: 20,
+    shadowColor: '#7C5CFF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
+    overflow: 'hidden',
+  },
+  continueCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+  },
+  continueIconContainer: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  continueTextContainer: {
+    flex: 1,
+  },
+  continueLabel: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 11,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  continueTitle: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 2,
+  },
+  continueSubtitle: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 12,
+  },
+  continueArrow: {
+    marginLeft: 12,
+  },
+  coursesSection: {
+    paddingHorizontal: 20,
+    paddingTop: 10,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginLeft: 8,
+    marginBottom : 10
+  },
+  viewAllButton: {
+    color: '#7C5CFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  courseCard: {
+    backgroundColor: '#1F2937',
+    borderRadius: 20,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  courseIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  courseContent: {
+    flex: 1,
+  },
+  courseHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  courseTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    flex: 1,
+    marginRight: 8,
+  },
+  completedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(245,158,11,0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  completedText: {
+    color: '#F59E0B',
+    fontSize: 10,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  courseDescription: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginBottom: 8,
+  },
+  progressContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  progressBar: {
+    flex: 1,
+    height: 5,
+    backgroundColor: '#374151',
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginRight: 10,
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  progressText: {
+    fontSize: 11,
+    color: '#6B7280',
+    fontWeight: '600',
+  },
+  arrowContainer: {
+    marginLeft: 12,
+    opacity: 0.5,
+  },
+  motivationalSection: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  motivationalCard: {
+    backgroundColor: '#1E293B',
+    borderRadius: 24,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(124,92,255,0.2)',
+    shadowColor: '#7C5CFF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 4,
+  },
+  motivationalEmoji: {
+    fontSize: 40,
+    marginBottom: 12,
+  },
+  motivationalTitle: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  motivationalText: {
+    color: '#94A3B8',
+    fontSize: 13,
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  startLearningButton: {
+    backgroundColor: '#F59E0B',
+    paddingHorizontal: 28,
+    paddingVertical: 12,
+    borderRadius: 25,
+    shadowColor: '#F59E0B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  startLearningText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+});
 
 export default HomeScreen;
