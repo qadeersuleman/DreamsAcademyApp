@@ -12,7 +12,7 @@ import {
   StyleSheet,
 } from "react-native";
 import Svg, { Path, Circle, Line, Polyline, Rect } from "react-native-svg";
-import { YouTubeVideosScreen } from "../youtube/YouTubeVideosScreen";
+
 
 const { width } = Dimensions.get("window");
 
@@ -348,7 +348,8 @@ export const HomeScreen: React.FC<HomeProps> = ({
 }) => {
   const scrollY = useRef(new Animated.Value(0)).current;
   const [refreshing, setRefreshing] = useState(false);
-  const [showYouTube, setShowYouTube] = useState(false);
+
+
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const greetingAnim = useRef(new Animated.Value(0)).current;
 
@@ -419,9 +420,7 @@ export const HomeScreen: React.FC<HomeProps> = ({
     return '🌙 Good Evening';
   };
 
-  if (showYouTube) {
-    return <YouTubeVideosScreen onBack={() => setShowYouTube(false)} />;
-  }
+
 
   return (
     <View style={styles.container}>
@@ -538,7 +537,7 @@ export const HomeScreen: React.FC<HomeProps> = ({
               label="Videos"
               color="#4F46E5"
               badge="New"
-              onPress={() => setShowYouTube(true)}
+              onPress={() => onNavigateToTab(3)}
             />
             <QuickActionButton
               icon={<FileTextIcon size={28} color="white" />}

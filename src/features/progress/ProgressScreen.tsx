@@ -1,12 +1,53 @@
 import React, { useEffect, useRef } from "react";
-import { View, Text, ScrollView, Animated } from "react-native";
-import Svg, { Rect, Line, Text as SvgText, G } from "react-native-svg";
-import { AppCard, StatCard } from "../../shared/widgets/Widgets";
-import { ClockIcon, CheckIcon, ProgressIcon } from "../../shared/widgets/Icons";
-import Colors from "../../theme/Colors";
-import { FadeInUp } from "../../shared/components/AnimatedComponents";
+import { View, Text, ScrollView, StyleSheet, Animated, Dimensions, StatusBar, TouchableOpacity } from "react-native";
+import Svg, { Rect, Line, Text as SvgText, G, Path, Circle } from "react-native-svg";
 
+const { width } = Dimensions.get("window");
 const AnimatedRect = Animated.createAnimatedComponent(Rect);
+
+// ─── Custom Icons ────────────────────────────────────────────────────────────
+
+const BackIcon = ({ size = 20, color = '#FFF' }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path d="M19 12H5M12 5l-7 7 7 7" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  </Svg>
+);
+
+const TrophyIcon = ({ size = 18, color = '#F59E0B' }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path d="M6 9H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h2M18 9h2a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-2" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M6 3h12v6a6 6 0 1 1-12 0V3z" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M12 18v3M9 21h6" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  </Svg>
+);
+
+const ClockIcon = ({ size = 14, color = '#94A3B8' }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Circle cx="12" cy="12" r="10" stroke={color} strokeWidth="2" />
+    <Path d="M12 6v6l4 2" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  </Svg>
+);
+
+const StarIcon = ({ size = 14, color = '#F59E0B' }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill={color} />
+  </Svg>
+);
+
+const CheckCircleIcon = ({ size = 18, color = '#10B981' }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke={color} strokeWidth="2" strokeLinecap="round" />
+    <Path d="M22 4L12 14.01l-3-3" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  </Svg>
+);
+
+const SparklesIcon = ({ size = 18, color = '#7C5CFF' }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path d="M12 3v3M12 18v3M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M3 12h3M18 12h3M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12" stroke={color} strokeWidth="2" strokeLinecap="round" />
+  </Svg>
+);
+
+// ─── Chart Bar Sub-component ──────────────────────────────────────────────────
 
 interface ChartBarProps {
   percentage: number;
@@ -24,9 +65,9 @@ const ChartBar: React.FC<ChartBarProps> = ({ percentage, color, xOffset, label, 
       toValue: percentage,
       duration: 1000,
       delay,
-      useNativeDriver: false, // SVG layouts do not support native driver
+      useNativeDriver: false, // SVG layouts do not support native driver animations
     }).start();
-  }, [percentage, delay]);
+  }, [percentage, delay, animValue]);
 
   const barHeight = animValue.interpolate({
     inputRange: [0, 100],
@@ -46,7 +87,7 @@ const ChartBar: React.FC<ChartBarProps> = ({ percentage, color, xOffset, label, 
         y="20"
         width="16"
         height="90"
-        fill={Colors.textLight + "08"}
+        fill="rgba(51, 65, 85, 0.3)"
         rx="4"
       />
       {/* Animated active bar */}
@@ -62,7 +103,7 @@ const ChartBar: React.FC<ChartBarProps> = ({ percentage, color, xOffset, label, 
       <SvgText
         x={xOffset + 8}
         y="126"
-        fill={Colors.textDark}
+        fill="#94A3B8"
         fontSize="8"
         fontWeight="bold"
         textAnchor="middle"
@@ -73,125 +114,352 @@ const ChartBar: React.FC<ChartBarProps> = ({ percentage, color, xOffset, label, 
   );
 };
 
-export const ProgressScreen: React.FC = () => {
+// ─── Main Component ──────────────────────────────────────────────────────────
+
+interface Props {
+  onBack: () => void;
+}
+
+export const ProgressScreen: React.FC<Props> = ({ onBack }) => {
   const chartData = [
-    { label: "Maths", percentage: 45, color: "#7C5CFF" },
+    { label: "Maths", percentage: 55, color: "#10B981" },
     { label: "Phys", percentage: 70, color: "#3DBE7A" },
-    { label: "Chem", percentage: 20, color: "#FFB020" },
-    { label: "Comp", percentage: 85, color: "#FF6B6B" },
+    { label: "Chem", percentage: 40, color: "#FFB020" },
+    { label: "Comp", percentage: 85, color: "#7C5CFF" },
   ];
 
   return (
-    <ScrollView className="flex-1 bg-background" contentContainerStyle={{ paddingBottom: 32 }}>
-      <View className="px-5 pt-8 pb-3">
-        <FadeInUp delay={50}>
-          <Text className="text-sm font-black text-textDark tracking-tight uppercase">Analytics & Progress</Text>
-          <Text className="text-[10px] text-textLight mt-0.5 mb-5 font-semibold">
-            Monitor subject stats, test evaluation records and unlock badges.
-          </Text>
-        </FadeInUp>
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
 
-        {/* Custom SVG Bar Chart */}
-        <FadeInUp delay={150}>
-          <AppCard className="mb-6 p-5 items-center bg-white border border-primary/20 shadow-md shadow-primary/5 rounded-3xl">
-            <Text className="text-[10px] font-extrabold text-textDark mb-4.5 self-start uppercase tracking-wider pl-1">
-              Subject Mastery Analytics
-            </Text>
-            
-            <View className="w-full items-center">
-              <Svg width="260" height="140" viewBox="0 0 260 140">
-                {/* Horizontal Grid Lines */}
-                <Line x1="40" y1="20" x2="240" y2="20" stroke={Colors.textLight + "10"} strokeWidth="1" strokeDasharray="3,3" />
-                <Line x1="40" y1="65" x2="240" y2="65" stroke={Colors.textLight + "10"} strokeWidth="1" strokeDasharray="3,3" />
-                <Line x1="40" y1="110" x2="240" y2="110" stroke={Colors.textDark + "20"} strokeWidth="1.5" />
-
-                {/* Y Axis Labels */}
-                <SvgText x="30" y="23" fill={Colors.textLight} fontSize="7" fontWeight="bold" textAnchor="end">100%</SvgText>
-                <SvgText x="30" y="68" fill={Colors.textLight} fontSize="7" fontWeight="bold" textAnchor="end">50%</SvgText>
-                <SvgText x="30" y="113" fill={Colors.textLight} fontSize="7" fontWeight="bold" textAnchor="end">0%</SvgText>
-
-                {/* Animated Bars */}
-                {chartData.map((data, index) => {
-                  const xOffset = 58 + index * 48;
-                  return (
-                    <ChartBar
-                      key={index}
-                      percentage={data.percentage}
-                      color={data.color}
-                      xOffset={xOffset}
-                      label={data.label}
-                      delay={200 + index * 100}
-                    />
-                  );
-                })}
-              </Svg>
-            </View>
-          </AppCard>
-        </FadeInUp>
-
-        {/* Statistics panel */}
-        <FadeInUp delay={250}>
-          <View className="flex-row mb-6">
-            <StatCard
-              label="Study Volume"
-              value="5.6 hrs"
-              subtitle="Spent reading chapters"
-              icon={<ClockIcon color={Colors.accent} size={14} />}
-            />
-            <StatCard
-              label="Quiz Accuracy"
-              value="88%"
-              subtitle="Average accuracy rate"
-              icon={<ProgressIcon color={Colors.success} size={14} />}
-            />
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.75}>
+          <BackIcon size={20} color="#FFFFFF" />
+        </TouchableOpacity>
+        <View style={styles.headerCenter}>
+          <View style={styles.progressBadge}>
+            <TrophyIcon size={12} color="#F59E0B" />
+            <Text style={styles.progressBadgeText}>ANALYTICS</Text>
           </View>
-        </FadeInUp>
-
-        {/* Achievements list */}
-        <FadeInUp delay={350}>
-          <Text className="text-xs font-extrabold text-textDark mb-4 px-1 uppercase tracking-tight">Unlocked Badges</Text>
-        </FadeInUp>
-        
-        <View className="mb-4">
-          <FadeInUp delay={420}>
-            <View className="bg-white border border-primary/20 rounded-3xl p-4.5 mb-4 flex-row items-center shadow-sm shadow-primary/5">
-              <View className="w-11 h-11 rounded-2xl bg-success/15 items-center justify-center mr-4 border border-success/20">
-                <CheckIcon size={18} color={Colors.success} />
-              </View>
-              <View className="flex-1">
-                <Text className="text-[10px] font-extrabold text-textDark mb-0.5 uppercase tracking-wide">Quick Starter</Text>
-                <Text className="text-[9px] text-textLight font-semibold">Completed the first lesson in record time.</Text>
-              </View>
-            </View>
-          </FadeInUp>
-
-          <FadeInUp delay={520}>
-            <View className="bg-white border border-primary/20 rounded-3xl p-4.5 mb-4 flex-row items-center shadow-sm shadow-primary/5">
-              <View className="w-11 h-11 rounded-2xl bg-accent/15 items-center justify-center mr-4 border border-accent/20">
-                <ProgressIcon size={18} color={Colors.accent} />
-              </View>
-              <View className="flex-1">
-                <Text className="text-[10px] font-extrabold text-textDark mb-0.5 uppercase tracking-wide">Perfect Evaluator</Text>
-                <Text className="text-[9px] text-textLight font-semibold">Scored 100% on a diagnostic test module.</Text>
-              </View>
-            </View>
-          </FadeInUp>
-
-          <FadeInUp delay={620}>
-            <View className="bg-white border border-primary/20 rounded-3xl p-4.5 mb-4 flex-row items-center shadow-sm shadow-primary/5 opacity-50">
-              <View className="w-11 h-11 rounded-2xl bg-textLight/10 items-center justify-center mr-4">
-                <ClockIcon size={18} color={Colors.textLight} />
-              </View>
-              <View className="flex-1">
-                <Text className="text-[10px] font-extrabold text-textDark mb-0.5 uppercase tracking-wide">Grandmaster (Locked)</Text>
-                <Text className="text-[9px] text-textLight font-semibold">Complete all available subjects and assessments.</Text>
-              </View>
-            </View>
-          </FadeInUp>
+          <Text style={styles.headerTitle}>Study Progress</Text>
+          <Text style={styles.headerSub}>Mastery Stats & Achievements</Text>
         </View>
+        <View style={styles.headerPlaceholder} />
       </View>
-    </ScrollView>
+
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Subject Mastery Analytics Chart */}
+        <View style={styles.chartCard}>
+          <Text style={styles.cardHeading}>📊 Subject Mastery Analytics</Text>
+          <View style={styles.chartContainer}>
+            <Svg width="260" height="140" viewBox="0 0 260 140">
+              {/* Horizontal Grid Lines */}
+              <Line x1="40" y1="20" x2="240" y2="20" stroke="#334155" strokeWidth="1" strokeDasharray="3,3" />
+              <Line x1="40" y1="65" x2="240" y2="65" stroke="#334155" strokeWidth="1" strokeDasharray="3,3" />
+              <Line x1="40" y1="110" x2="240" y2="110" stroke="#475569" strokeWidth="1.5" />
+
+              {/* Y Axis Labels */}
+              <SvgText x="30" y="23" fill="#94A3B8" fontSize="7" fontWeight="bold" textAnchor="end">100%</SvgText>
+              <SvgText x="30" y="68" fill="#94A3B8" fontSize="7" fontWeight="bold" textAnchor="end">50%</SvgText>
+              <SvgText x="30" y="113" fill="#94A3B8" fontSize="7" fontWeight="bold" textAnchor="end">0%</SvgText>
+
+              {/* Animated Bars */}
+              {chartData.map((data, index) => {
+                const xOffset = 58 + index * 48;
+                return (
+                  <ChartBar
+                    key={index}
+                    percentage={data.percentage}
+                    color={data.color}
+                    xOffset={xOffset}
+                    label={data.label}
+                    delay={200 + index * 100}
+                  />
+                );
+              })}
+            </Svg>
+          </View>
+        </View>
+
+        {/* Statistics Cards */}
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <View style={styles.statHeader}>
+              <ClockIcon color="#7C5CFF" size={16} />
+              <Text style={styles.statLabel}>Study Volume</Text>
+            </View>
+            <Text style={styles.statValue}>6.4 hrs</Text>
+            <Text style={styles.statSub}>Revision & Videos</Text>
+          </View>
+
+          <View style={styles.statCard}>
+            <View style={styles.statHeader}>
+              <SparklesIcon color="#10B981" size={16} />
+              <Text style={styles.statLabel}>Completed</Text>
+            </View>
+            <Text style={styles.statValue}>82%</Text>
+            <Text style={styles.statSub}>Syllabus coverage</Text>
+          </View>
+        </View>
+
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <View style={styles.statHeader}>
+              <StarIcon color="#F59E0B" size={14} />
+              <Text style={styles.statLabel}>Quiz Accuracy</Text>
+            </View>
+            <Text style={styles.statValue}>91%</Text>
+            <Text style={styles.statSub}>Average scores</Text>
+          </View>
+
+          <View style={styles.statCard}>
+            <View style={styles.statHeader}>
+              <TrophyIcon color="#EC4899" size={16} />
+              <Text style={styles.statLabel}>Badges</Text>
+            </View>
+            <Text style={styles.statValue}>4 Unlocked</Text>
+            <Text style={styles.statSub}>Out of 6 available</Text>
+          </View>
+        </View>
+
+        {/* Achievements Section */}
+        <Text style={styles.sectionHeading}>🏆 Unlocked Badges</Text>
+
+        <View style={styles.badgeList}>
+          {/* Badge 1 */}
+          <View style={styles.badgeCard}>
+            <View style={[styles.badgeIconContainer, { borderColor: '#10B98125', backgroundColor: '#10B98110' }]}>
+              <CheckCircleIcon size={20} color="#10B981" />
+            </View>
+            <View style={styles.badgeInfo}>
+              <Text style={styles.badgeTitle}>Quick Starter</Text>
+              <Text style={styles.badgeDesc}>Completed your first study guide revision notes.</Text>
+            </View>
+          </View>
+
+          {/* Badge 2 */}
+          <View style={styles.badgeCard}>
+            <View style={[styles.badgeIconContainer, { borderColor: '#7C5CFF25', backgroundColor: '#7C5CFF10' }]}>
+              <SparklesIcon size={20} color="#7C5CFF" />
+            </View>
+            <View style={styles.badgeInfo}>
+              <Text style={styles.badgeTitle}>Perfect Evaluator</Text>
+              <Text style={styles.badgeDesc}>Scored 100% on a science diagnostic test module.</Text>
+            </View>
+          </View>
+
+          {/* Badge 3 */}
+          <View style={styles.badgeCard}>
+            <View style={[styles.badgeIconContainer, { borderColor: '#F59E0B25', backgroundColor: '#F59E0B10' }]}>
+              <StarIcon size={18} color="#F59E0B" />
+            </View>
+            <View style={styles.badgeInfo}>
+              <Text style={styles.badgeTitle}>Knowledge Seeker</Text>
+              <Text style={styles.badgeDesc}>Watched video lectures continuously for over 2 hours.</Text>
+            </View>
+          </View>
+
+          {/* Badge 4 - Locked */}
+          <View style={[styles.badgeCard, styles.badgeCardLocked]}>
+            <View style={[styles.badgeIconContainer, { borderColor: '#47556940', backgroundColor: '#47556910' }]}>
+              <TrophyIcon size={18} color="#64748B" />
+            </View>
+            <View style={styles.badgeInfo}>
+              <Text style={[styles.badgeTitle, styles.textMuted]}>Grandmaster (Locked)</Text>
+              <Text style={[styles.badgeDesc, styles.textMuted]}>Complete all lessons, quizzes, and videos.</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={{ height: 120 }} />
+      </ScrollView>
+    </View>
   );
 };
+
+// ─── Styles ──────────────────────────────────────────────────────────────────
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#0F172A',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 14,
+    backgroundColor: '#0F172A',
+    borderBottomWidth: 1,
+    borderBottomColor: '#1E293B',
+  },
+  backBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#1E293B',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  progressBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F59E0B18',
+    borderRadius: 20,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    marginBottom: 3,
+    borderWidth: 1,
+    borderColor: '#F59E0B30',
+  },
+  progressBadgeText: {
+    fontSize: 9,
+    color: '#F59E0B',
+    fontWeight: '800',
+    marginLeft: 4,
+    letterSpacing: 0.5,
+  },
+  headerTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#F1F5F9',
+    letterSpacing: 0.2,
+  },
+  headerSub: {
+    fontSize: 10,
+    color: '#64748B',
+    fontWeight: '600',
+    marginTop: 1,
+  },
+  headerPlaceholder: {
+    width: 38,
+    height: 38,
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 16,
+  },
+  // Chart Card
+  chartCard: {
+    backgroundColor: '#1E293B',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#334155',
+    padding: 16,
+    marginBottom: 16,
+  },
+  cardHeading: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#F1F5F9',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 12,
+  },
+  chartContainer: {
+    alignItems: 'center',
+    width: '100%',
+  },
+  // Stats
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+    gap: 12,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: '#1E293B',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#334155',
+    padding: 14,
+  },
+  statHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 6,
+  },
+  statLabel: {
+    fontSize: 10,
+    color: '#94A3B8',
+    fontWeight: '700',
+  },
+  statValue: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#F1F5F9',
+    marginBottom: 2,
+  },
+  statSub: {
+    fontSize: 9,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  // Achievements
+  sectionHeading: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#F1F5F9',
+    marginTop: 12,
+    marginBottom: 14,
+    letterSpacing: 0.1,
+  },
+  badgeList: {
+    marginBottom: 20,
+  },
+  badgeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E293B',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#334155',
+    padding: 14,
+    marginBottom: 12,
+  },
+  badgeCardLocked: {
+    opacity: 0.5,
+  },
+  badgeIconContainer: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  badgeInfo: {
+    flex: 1,
+  },
+  badgeTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#F1F5F9',
+    marginBottom: 2,
+  },
+  badgeDesc: {
+    fontSize: 10,
+    color: '#94A3B8',
+    lineHeight: 14,
+  },
+  textMuted: {
+    color: '#64748B',
+  },
+});
 
 export default ProgressScreen;

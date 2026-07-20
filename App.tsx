@@ -16,7 +16,7 @@ import { LoginScreen, SignupScreen, ForgotPasswordScreen } from "./src/features/
 import { HomeScreen } from "./src/features/home/HomeScreen";
 import { TestsScreen } from "./src/features/tests/TestsScreen";
 import { NotesScreen } from "./src/features/notes/NotesScreen";
-import { VideosScreen } from "./src/features/videos/VideosScreen";
+import { YouTubeVideosScreen } from "./src/features/youtube/YouTubeVideosScreen";
 import { ProgressScreen } from "./src/features/progress/ProgressScreen";
 import { SubjectsScreen } from "./src/features/subjects/SubjectsScreen";
 import { Subject } from "./src/data/mockData";
@@ -236,11 +236,11 @@ function AppContent() {
       case 1:
         return <TestsScreen />;
       case 2:
-        return <NotesScreen />;
+        return <NotesScreen onBack={() => handleNavigateToTab(0)} />;
       case 3:
-        return <VideosScreen />;
+        return <YouTubeVideosScreen onBack={() => handleNavigateToTab(0)} />;
       case 4:
-        return <ProgressScreen />;
+        return <ProgressScreen onBack={() => handleNavigateToTab(0)} />;
       default:
         return (
           <HomeScreen
