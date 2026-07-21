@@ -11,13 +11,13 @@ import {
 } from "react-native";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "./src/theme/Colors";
-import { HomeIcon, TestsIcon, NotesIcon, VideosIcon, ProgressIcon } from "./src/shared/widgets/Icons";
+import { HomeIcon, TestsIcon, NotesIcon, VideosIcon, ProfileIcon } from "./src/shared/widgets/Icons";
 import { LoginScreen, SignupScreen, ForgotPasswordScreen } from "./src/features/auth/AuthScreens";
 import { HomeScreen } from "./src/features/home/HomeScreen";
 import { TestsScreen } from "./src/features/tests/TestsScreen";
 import { NotesScreen } from "./src/features/notes/NotesScreen";
 import { YouTubeVideosScreen } from "./src/features/youtube/YouTubeVideosScreen";
-import { ProgressScreen } from "./src/features/progress/ProgressScreen";
+import { ProfileScreen } from "./src/features/profile/ProfileScreen";
 import { SubjectsScreen } from "./src/features/subjects/SubjectsScreen";
 import { Subject } from "./src/data/mockData";
 import { ExitConfirmModal } from "./src/shared/components/ExitConfirmModal";
@@ -27,7 +27,7 @@ const TABS = [
   { label: "Tests", icon: TestsIcon },
   { label: "Notes", icon: NotesIcon },
   { label: "Videos", icon: VideosIcon },
-  { label: "Progress", icon: ProgressIcon },
+  { label: "Profile", icon: ProfileIcon },
 ];
 
 const TAB_BAR_MARGIN = 16;
@@ -240,7 +240,12 @@ function AppContent() {
       case 3:
         return <YouTubeVideosScreen onBack={() => handleNavigateToTab(0)} />;
       case 4:
-        return <ProgressScreen onBack={() => handleNavigateToTab(0)} />;
+        return (
+          <ProfileScreen
+            onLogout={() => setIsLoggedIn(false)}
+            onBack={() => handleNavigateToTab(0)}
+          />
+        );
       default:
         return (
           <HomeScreen

@@ -1,8 +1,7 @@
 import React, { useEffect, useRef } from "react";
-import { View, Text, ScrollView, StyleSheet, Animated, Dimensions, StatusBar, TouchableOpacity } from "react-native";
+import { View, Text, ScrollView, StyleSheet, Animated, StatusBar, TouchableOpacity } from "react-native";
 import Svg, { Rect, Line, Text as SvgText, G, Path, Circle } from "react-native-svg";
 
-const { width } = Dimensions.get("window");
 const AnimatedRect = Animated.createAnimatedComponent(Rect);
 
 // ─── Custom Icons ────────────────────────────────────────────────────────────
