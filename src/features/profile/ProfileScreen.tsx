@@ -146,14 +146,19 @@ const ChartBar: React.FC<ChartBarProps> = ({ percentage, color, xOffset, label, 
 // ─── Main Profile Screen ─────────────────────────────────────────────────────
 
 interface ProfileProps {
+  user?: any;
   onLogout: () => void;
   onBack?: () => void;
 }
 
-export const ProfileScreen: React.FC<ProfileProps> = ({ onLogout, onBack }) => {
+export const ProfileScreen: React.FC<ProfileProps> = ({ user, onLogout, onBack }) => {
   const [darkMode, setDarkMode] = useState(true);
   const [notifications, setNotifications] = useState(true);
   const [offlineMode, setOfflineMode] = useState(false);
+
+  const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || MOCK_USER.name;
+  const displayEmail = user?.email || MOCK_USER.email;
+  const avatarUrl = user?.user_metadata?.avatar_url || `https://ui-avatars.com/api/?background=7C5CFF&color=fff&name=${encodeURIComponent(displayName)}`;
 
   const chartData = [
     { label: "Maths", percentage: 55, color: "#10B981" },
@@ -194,14 +199,14 @@ export const ProfileScreen: React.FC<ProfileProps> = ({ onLogout, onBack }) => {
         <View style={styles.userCard}>
           <View style={styles.avatarWrapper}>
             <Image
-              source={{ uri: MOCK_USER.avatar }}
+              source={{ uri: avatarUrl }}
               style={styles.avatarImage}
             />
             <View style={styles.onlineBadge} />
           </View>
           <View style={styles.userInfo}>
-            <Text style={styles.userName}>{MOCK_USER.name}</Text>
-            <Text style={styles.userEmail}>{MOCK_USER.email}</Text>
+            <Text style={styles.userName}>{displayName}</Text>
+            <Text style={styles.userEmail}>{displayEmail}</Text>
             <View style={styles.userMetaRow}>
               <View style={styles.metaChip}>
                 <Text style={styles.metaChipText}>FSc Class 12th</Text>

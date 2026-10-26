@@ -10,8 +10,11 @@ import {
   Dimensions,
   StatusBar,
   Animated,
+  ActivityIndicator,
 } from "react-native";
 import Svg, { Path, Circle, Line } from "react-native-svg";
+import { supabase } from "../../lib/supabase";
+import { ToastModal, ToastConfig } from "../../shared/components/ToastModal";
 
 const { width, height } = Dimensions.get("window");
 
@@ -227,10 +230,13 @@ const ModernButton: React.FC<{
   onPress: () => void;
   variant?: "primary" | "secondary";
   icon?: "log-in" | "user-plus" | "send" | "arrow-left";
-}> = ({ title, onPress, variant = "primary", icon }) => {
+  loading?: boolean;
+  disabled?: boolean;
+}> = ({ title, onPress, variant = "primary", icon, loading, disabled }) => {
   const scale = useRef(new Animated.Value(1)).current;
 
   const handlePressIn = () => {
+    if (disabled || loading) return;
     Animated.spring(scale, {
       toValue: 0.96,
       useNativeDriver: true,
@@ -241,6 +247,7 @@ const ModernButton: React.FC<{
   };
 
   const handlePressOut = () => {
+    if (disabled || loading) return;
     Animated.spring(scale, {
       toValue: 1,
       useNativeDriver: true,
@@ -252,6 +259,13 @@ const ModernButton: React.FC<{
   };
 
   const renderIcon = () => {
+    if (loading) {
+      return (
+        <View className="mr-2">
+          <ActivityIndicator size="small" color={variant === "primary" ? "#FFFFFF" : "#7C5CFF"} />
+        </View>
+      );
+    }
     if (!icon) return null;
     const color = variant === "primary" ? "#FFFFFF" : "#7C5CFF";
     return (
@@ -268,10 +282,11 @@ const ModernButton: React.FC<{
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       activeOpacity={0.9}
+      disabled={disabled || loading}
       className="mb-4"
     >
       <Animated.View
-        style={{ transform: [{ scale }] }}
+        style={{ transform: [{ scale }], opacity: disabled || loading ? 0.7 : 1 }}
         className={`rounded-2xl py-4 px-6 flex-row items-center justify-center border ${
           variant === "primary" 
             ? "bg-accent border-accent/25" 
@@ -284,7 +299,7 @@ const ModernButton: React.FC<{
             variant === "primary" ? "text-white" : "text-accent"
           }`}
         >
-          {title}
+          {loading ? "Please wait..." : title}
         </Text>
       </Animated.View>
     </TouchableOpacity>
@@ -299,6 +314,9 @@ export const LoginScreen: React.FC<{
 }> = ({ onLoginSuccess, onNavigateToSignup, onNavigateToForgot }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState<ToastConfig>({ visible: false, message: "" });
+
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const logoScale = useRef(new Animated.Value(0.5)).current;
   const logoOpacity = useRef(new Animated.Value(0)).current;
@@ -325,12 +343,35 @@ export const LoginScreen: React.FC<{
     }).start();
   }, []);
 
-  const handleLogin = () => {
-    onLoginSuccess();
+  const handleLogin = async () => {
+    if (!email.trim() || !password.trim()) {
+      setToast({ visible: true, type: "error", title: "Missing Fields", message: "Please enter your email and password." });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password: password.trim(),
+      });
+
+      if (error) {
+        setToast({ visible: true, type: "error", title: "Login Failed", message: error.message });
+      } else if (data.user) {
+        setToast({ visible: true, type: "success", title: "Welcome Back!", message: `Good to see you, ${data.user.user_metadata?.full_name || data.user.email?.split('@')[0] || 'Student'}! 🎉` });
+        setTimeout(() => onLoginSuccess(), 1200);
+      }
+    } catch (err: any) {
+      setToast({ visible: true, type: "error", title: "Error", message: err?.message || "An unexpected error occurred." });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <View className="flex-1 bg-slate-950">
+      <ToastModal toast={toast} onHide={() => setToast(t => ({ ...t, visible: false }))} />
       <StatusBar barStyle="light-content" />
       <ParticleBackground />
       <KeyboardAvoidingView
@@ -347,7 +388,7 @@ export const LoginScreen: React.FC<{
             <Animated.View 
               style={[
                 { transform: [{ scale: logoScale }], opacity: logoOpacity },
-                { alignItems: "center", marginBottom: 48 }
+                { alignItems: "center", marginBottom: 32 }
               ]}
             >
               <View className="w-20 h-20 rounded-3xl bg-accent items-center justify-center shadow-lg mb-4 border border-white/10">
@@ -393,7 +434,12 @@ export const LoginScreen: React.FC<{
             </View>
 
             {/* Login Button */}
-            <ModernButton title="Sign In" onPress={handleLogin} icon="log-in" />
+            <ModernButton
+              title="Sign In"
+              onPress={handleLogin}
+              icon="log-in"
+              loading={loading}
+            />
 
             {/* Sign Up Link */}
             <View className="flex-row justify-center mt-6">
@@ -439,13 +485,48 @@ export const SignupScreen: React.FC<{
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState<ToastConfig>({ visible: false, message: "" });
 
-  const handleSignup = () => {
-    onLoginSuccess();
+  const handleSignup = async () => {
+    if (!name.trim() || !email.trim() || !password.trim()) {
+      setToast({ visible: true, type: "error", title: "Missing Fields", message: "Please fill in all fields." });
+      return;
+    }
+
+    if (password.length < 6) {
+      setToast({ visible: true, type: "error", title: "Weak Password", message: "Password must be at least 6 characters." });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password: password.trim(),
+        options: {
+          data: {
+            full_name: name.trim(),
+          },
+        },
+      });
+
+      if (error) {
+        setToast({ visible: true, type: "error", title: "Sign Up Failed", message: error.message });
+      } else if (data.user) {
+        setToast({ visible: true, type: "success", title: "Account Created!", message: `Welcome to Dreams Academy, ${name.trim()}! 🎓` });
+        setTimeout(() => onLoginSuccess(), 1400);
+      }
+    } catch (err: any) {
+      setToast({ visible: true, type: "error", title: "Error", message: err?.message || "An unexpected error occurred." });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <View className="flex-1 bg-slate-950">
+      <ToastModal toast={toast} onHide={() => setToast(t => ({ ...t, visible: false }))} />
       <ParticleBackground />
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -458,7 +539,7 @@ export const SignupScreen: React.FC<{
         >
           <View className="px-6 pt-12 pb-8">
             {/* Animated Header */}
-            <View className="items-center mb-8">
+            <View className="items-center mb-6">
               <View className="w-16 h-16 rounded-3xl bg-accent items-center justify-center mb-4 border border-white/10">
                 <Svg width={32} height={32} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <Path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
@@ -476,7 +557,7 @@ export const SignupScreen: React.FC<{
             </View>
 
             {/* Form Fields */}
-            <View className="mt-4">
+            <View className="mt-2">
               <ModernInput
                 icon="user"
                 label="Full Name"
@@ -511,7 +592,12 @@ export const SignupScreen: React.FC<{
             </View>
 
             {/* Sign Up Button */}
-            <ModernButton title="Create Account" onPress={handleSignup} icon="user-plus" />
+            <ModernButton
+              title="Create Account"
+              onPress={handleSignup}
+              icon="user-plus"
+              loading={loading}
+            />
 
             {/* Login Link */}
             <View className="flex-row justify-center mt-6">
@@ -533,10 +619,13 @@ export const ForgotPasswordScreen: React.FC<{
 }> = ({ onNavigateToLogin }) => {
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const shake = useRef(new Animated.Value(0)).current;
 
-  const handleSubmit = () => {
-    if (!email) {
+  const handleSubmit = async () => {
+    setErrorMsg(null);
+    if (!email.trim()) {
       Animated.sequence([
         Animated.timing(shake, { toValue: 10, duration: 50, useNativeDriver: true }),
         Animated.timing(shake, { toValue: -10, duration: 50, useNativeDriver: true }),
@@ -544,8 +633,21 @@ export const ForgotPasswordScreen: React.FC<{
         Animated.timing(shake, { toValue: -5, duration: 50, useNativeDriver: true }),
         Animated.timing(shake, { toValue: 0, duration: 50, useNativeDriver: true }),
       ]).start();
-    } else {
-      setSubmitted(true);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
+      if (error) {
+        setErrorMsg(error.message);
+      } else {
+        setSubmitted(true);
+      }
+    } catch (err: any) {
+      setErrorMsg(err?.message || "An error occurred.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -573,6 +675,15 @@ export const ForgotPasswordScreen: React.FC<{
                 </Text>
               </View>
 
+              {/* Error Banner */}
+              {errorMsg && (
+                <View className="mb-4 p-3.5 rounded-2xl bg-red-500/15 border border-red-500/30">
+                  <Text className="text-red-400 text-xs font-bold text-center">
+                    ⚠️ {errorMsg}
+                  </Text>
+                </View>
+              )}
+
               <View className="mt-4">
                 <ModernInput
                   icon="mail"
@@ -589,6 +700,7 @@ export const ForgotPasswordScreen: React.FC<{
                   title="Send Reset Link"
                   onPress={handleSubmit}
                   icon="send"
+                  loading={loading}
                 />
                 <ModernButton
                   title="Back to Sign In"

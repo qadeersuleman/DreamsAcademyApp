@@ -5,12 +5,24 @@ import {
   Image,
   TouchableOpacity,
   RefreshControl,
-  Animated,
   Share,
   Platform,
   Dimensions,
   StyleSheet,
 } from "react-native";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  FadeInDown,
+  FadeInUp,
+  FadeIn,
+  SlideInLeft,
+  useAnimatedScrollHandler,
+  interpolate,
+  Extrapolation,
+} from "react-native-reanimated";
 import Svg, { Path, Circle, Line, Polyline, Rect } from "react-native-svg";
 
 
@@ -19,6 +31,7 @@ const { width } = Dimensions.get("window");
 interface HomeProps {
   onNavigateToTab: (tabIndex: number) => void;
   onSelectSubject: (subject: any) => void;
+  user?: any;
 }
 
 // ======================== ENHANCED CUSTOM ICONS ========================
@@ -196,89 +209,64 @@ const QuickActionButton: React.FC<{
   color: string;
   badge?: string;
   onPress: () => void;
-}> = ({ icon, label, color, badge, onPress }) => {
-  const scaleAnim = useRef(new Animated.Value(1)).current;
+  index?: number;
+}> = ({ icon, label, color, badge, onPress, index = 0 }) => {
+  const scale = useSharedValue(1);
 
-  const handlePressIn = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 0.9,
-      useNativeDriver: true,
-      tension: 100,
-      friction: 10,
-    }).start();
-  };
-
-  const handlePressOut = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      useNativeDriver: true,
-      tension: 100,
-      friction: 10,
-    }).start();
-  };
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
 
   return (
-    <TouchableOpacity
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-      onPress={onPress}
-      activeOpacity={0.9}
-      delayPressIn={0}
-      style={{ alignItems: 'center', width: (width - 60) / 3 }}
-    >
-      <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-        <View style={[styles.quickActionIcon, { backgroundColor: color }]}>
-          {icon}
-          {badge && (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{badge}</Text>
-            </View>
-          )}
-        </View>
-        <Text style={styles.quickActionLabel}>{label}</Text>
-      </Animated.View>
-    </TouchableOpacity>
+    <Animated.View entering={FadeInDown.delay(index * 80).springify()} style={{ alignItems: 'center', width: (width - 60) / 3 }}>
+      <TouchableOpacity
+        onPressIn={() => { scale.value = withSpring(0.88, { damping: 12, stiffness: 180 }); }}
+        onPressOut={() => { scale.value = withSpring(1, { damping: 12, stiffness: 180 }); }}
+        onPress={onPress}
+        activeOpacity={1}
+        delayPressIn={0}
+        style={{ alignItems: 'center' }}
+      >
+        <Animated.View style={animStyle}>
+          <View style={[styles.quickActionIcon, { backgroundColor: color }]}>
+            {icon}
+            {badge && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{badge}</Text>
+              </View>
+            )}
+          </View>
+          <Text style={styles.quickActionLabel}>{label}</Text>
+        </Animated.View>
+      </TouchableOpacity>
+    </Animated.View>
   );
 };
 
 const CourseCard: React.FC<{
   subject: any;
   onPress: () => void;
-}> = ({ subject, onPress }) => {
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-  
+  index?: number;
+}> = ({ subject, onPress, index = 0 }) => {
+  const scale = useSharedValue(1);
+
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
   const lessons = subject?.lessons || [];
   const completedCount = lessons.filter((l: any) => l.completed === true).length;
   const totalLessonsCount = lessons.length;
   const progress = totalLessonsCount > 0 ? (completedCount / totalLessonsCount) * 100 : 0;
 
-  const handlePressIn = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 0.98,
-      useNativeDriver: true,
-      tension: 100,
-      friction: 10,
-    }).start();
-  };
-
-  const handlePressOut = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      useNativeDriver: true,
-      tension: 100,
-      friction: 10,
-    }).start();
-  };
-
   const renderIcon = () => {
-    const iconColor = "white";
-    const iconProps = { size: 26, color: iconColor };
+    const iconProps = { size: 26, color: 'white' };
     switch (subject?.icon) {
-      case "science": return <ScienceIcon {...iconProps} />;
-      case "math": return <MathIcon {...iconProps} />;
-      case "chemistry": return <ChemistryIcon {...iconProps} />;
-      case "physics": return <PhysicsIcon {...iconProps} />;
-      case "computer": return <ComputerIcon {...iconProps} />;
+      case 'science': return <ScienceIcon {...iconProps} />;
+      case 'math': return <MathIcon {...iconProps} />;
+      case 'chemistry': return <ChemistryIcon {...iconProps} />;
+      case 'physics': return <PhysicsIcon {...iconProps} />;
+      case 'computer': return <ComputerIcon {...iconProps} />;
       default: return <ScienceIcon {...iconProps} />;
     }
   };
@@ -290,54 +278,56 @@ const CourseCard: React.FC<{
   };
 
   return (
-    <TouchableOpacity
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-      onPress={onPress}
-      activeOpacity={0.95}
-      delayPressIn={0}
+    <Animated.View
+      entering={SlideInLeft.delay(index * 60).springify().damping(14)}
       style={{ marginBottom: 14 }}
     >
-      <Animated.View style={[styles.courseCard, { transform: [{ scale: scaleAnim }] }]}>
-        <View style={[styles.courseIconContainer, { backgroundColor: subject?.color || '#7C5CFF' }]}>
-          {renderIcon()}
-        </View>
-
-        <View style={styles.courseContent}>
-          <View style={styles.courseHeader}>
-            <Text style={styles.courseTitle} numberOfLines={1}>
-              {subject?.title || 'Course'}
-            </Text>
-            {progress === 100 && (
-              <View style={styles.completedBadge}>
-                <StarIcon size={12} color="#F59E0B" />
-                <Text style={styles.completedText}>Done!</Text>
-              </View>
-            )}
+      <TouchableOpacity
+        onPressIn={() => { scale.value = withSpring(0.97, { damping: 14, stiffness: 200 }); }}
+        onPressOut={() => { scale.value = withSpring(1, { damping: 14, stiffness: 200 }); }}
+        onPress={onPress}
+        activeOpacity={1}
+        delayPressIn={0}
+      >
+        <Animated.View style={[styles.courseCard, animStyle]}>
+          <View style={[styles.courseIconContainer, { backgroundColor: subject?.color || '#7C5CFF' }]}>
+            {renderIcon()}
           </View>
-          
-          <Text style={styles.courseDescription} numberOfLines={1}>
-            {subject?.description || 'No description'}
-          </Text>
 
-          <View style={styles.progressContainer}>
-            <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { 
-                width: `${progress}%`,
-                backgroundColor: getProgressColor()
-              }]} />
+          <View style={styles.courseContent}>
+            <View style={styles.courseHeader}>
+              <Text style={styles.courseTitle} numberOfLines={1}>
+                {subject?.title || 'Course'}
+              </Text>
+              {progress === 100 && (
+                <View style={styles.completedBadge}>
+                  <StarIcon size={12} color="#F59E0B" />
+                  <Text style={styles.completedText}>Done!</Text>
+                </View>
+              )}
             </View>
-            <Text style={styles.progressText}>
-              {completedCount}/{totalLessonsCount} lessons
+            <Text style={styles.courseDescription} numberOfLines={1}>
+              {subject?.description || 'No description'}
             </Text>
+            <View style={styles.progressContainer}>
+              <View style={styles.progressBar}>
+                <View style={[styles.progressFill, {
+                  width: `${progress}%`,
+                  backgroundColor: getProgressColor()
+                }]} />
+              </View>
+              <Text style={styles.progressText}>
+                {completedCount}/{totalLessonsCount} lessons
+              </Text>
+            </View>
           </View>
-        </View>
 
-        <View style={styles.arrowContainer}>
-          <ArrowRightIcon size={20} color="#6B7280" />
-        </View>
-      </Animated.View>
-    </TouchableOpacity>
+          <View style={styles.arrowContainer}>
+            <ArrowRightIcon size={20} color="#6B7280" />
+          </View>
+        </Animated.View>
+      </TouchableOpacity>
+    </Animated.View>
   );
 };
 
@@ -345,29 +335,26 @@ const CourseCard: React.FC<{
 export const HomeScreen: React.FC<HomeProps> = ({
   onNavigateToTab,
   onSelectSubject,
+  user,
 }) => {
-  const scrollY = useRef(new Animated.Value(0)).current;
   const [refreshing, setRefreshing] = useState(false);
 
+  // Reanimated scroll value
+  const scrollY = useSharedValue(0);
+  const scrollHandler = useAnimatedScrollHandler(e => {
+    scrollY.value = e.contentOffset.y;
+  });
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const greetingAnim = useRef(new Animated.Value(0)).current;
+  // Header parallax opacity
+  const headerAnimStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [0, 80], [1, 0.92], Extrapolation.CLAMP),
+  }));
 
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-      Animated.spring(greetingAnim, {
-        toValue: 1,
-        tension: 50,
-        friction: 7,
-        useNativeDriver: true,
-      })
-    ]).start();
-  }, [fadeAnim, greetingAnim]);
+  // Greeting slide-in
+  const greetingAnimStyle = useAnimatedStyle(() => ({
+    opacity: withTiming(1, { duration: 600 }),
+    transform: [{ translateY: withSpring(0, { damping: 14, stiffness: 120 }) }],
+  }));
 
   // Calculate stats
   const totalLessons = SUBJECTS.reduce((acc, sub) => acc + (sub?.lessons?.length || 0), 0);
@@ -380,15 +367,9 @@ export const HomeScreen: React.FC<HomeProps> = ({
   // Find next incomplete lesson
   let nextCourse: any = null;
   let nextLesson: any = null;
-
   for (const sub of SUBJECTS) {
-    const lessons = sub?.lessons || [];
-    const incomplete = lessons.find((l: any) => !l.completed);
-    if (incomplete) {
-      nextCourse = sub;
-      nextLesson = incomplete;
-      break;
-    }
+    const incomplete = (sub?.lessons || []).find((l: any) => !l.completed);
+    if (incomplete) { nextCourse = sub; nextLesson = incomplete; break; }
   }
 
   const onRefresh = useCallback(async () => {
@@ -402,16 +383,8 @@ export const HomeScreen: React.FC<HomeProps> = ({
       await Share.share({
         message: `📚 I've completed ${completedLessons} out of ${totalLessons} lessons on Dreams Academy! Join me in learning! 🎓`,
       });
-    } catch (error) {
-      console.error(error);
-    }
+    } catch (error) { console.error(error); }
   };
-
-  const headerOpacity = scrollY.interpolate({
-    inputRange: [0, 100],
-    outputRange: [1, 0.95],
-    extrapolate: 'clamp',
-  });
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -420,97 +393,70 @@ export const HomeScreen: React.FC<HomeProps> = ({
     return '🌙 Good Evening';
   };
 
-
-
   return (
     <View style={styles.container}>
       {/* Header */}
-      <Animated.View style={[styles.header, { opacity: headerOpacity }]}>
-        <View style={styles.headerTop}>
-          <View style={styles.headerLeft}>
-            <Animated.Text style={[styles.greeting, {
-              transform: [{ 
-                translateY: greetingAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [-20, 0]
-                })
-              }],
-              opacity: greetingAnim
-            }]}>
-              {getGreeting()} 👋
-            </Animated.Text>
-            <Text style={styles.studentName}>{DEFAULT_USER.name}</Text>
-          </View>
-          
-          <TouchableOpacity 
-            onPress={() => onNavigateToTab(4)}
-            style={styles.avatarButton}
-            delayPressIn={0}
-          >
-            <Image
-              source={{ uri: DEFAULT_USER.avatar }}
-              style={styles.avatar}
-            />
-            <View style={styles.onlineDot} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Progress Card */}
-        <View style={styles.progressCard}>
-          <View style={styles.progressCardLeft}>
-            <View style={styles.progressCircle}>
-              <Svg width="70" height="70" viewBox="0 0 36 36">
-                <Path
-                  d="M18 2.0845
-                    a 15.9155 15.9155 0 0 1 0 31.831
-                    a 15.9155 15.9155 0 0 1 0 -31.831"
-                  fill="none"
-                  stroke="rgba(255,255,255,0.2)"
-                  strokeWidth="3"
-                  strokeLinecap="round"
-                />
-                <Path
-                  d="M18 2.0845
-                    a 15.9155 15.9155 0 0 1 0 31.831
-                    a 15.9155 15.9155 0 0 1 0 -31.831"
-                  fill="none"
-                  stroke="white"
-                  strokeWidth="3"
-                  strokeLinecap="round"
-                  strokeDasharray={`${overallProgress}, 100`}
-                />
-              </Svg>
-              <View style={styles.progressCircleText}>
-                <Text style={styles.progressPercentage}>
-                  {Math.round(overallProgress)}%
-                </Text>
-              </View>
-            </View>
-            <View style={styles.progressInfo}>
-              <Text style={styles.progressLabel}>Overall Progress</Text>
-              <Text style={styles.progressDetail}>
-                {completedLessons} of {totalLessons} lessons
+      <Animated.View style={[styles.header, headerAnimStyle]}>
+        <Animated.View entering={FadeInDown.delay(50).duration(500)}>
+          <View style={styles.headerTop}>
+            <View style={styles.headerLeft}>
+              <Animated.Text style={[styles.greeting, greetingAnimStyle]}>
+                {getGreeting()} 👋
+              </Animated.Text>
+              <Text style={styles.studentName}>
+                {user?.user_metadata?.full_name || user?.email?.split('@')[0] || DEFAULT_USER.name}
               </Text>
             </View>
+            <TouchableOpacity
+              onPress={() => onNavigateToTab(4)}
+              style={styles.avatarButton}
+              delayPressIn={0}
+            >
+              <Image
+                source={{ uri: user?.user_metadata?.avatar_url || `https://ui-avatars.com/api/?background=7C5CFF&color=fff&name=${encodeURIComponent(user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'U')}&size=128` }}
+                style={styles.avatar}
+              />
+              <View style={styles.onlineDot} />
+            </TouchableOpacity>
           </View>
-          
-          <TouchableOpacity 
-            onPress={handleShareProgress}
-            style={styles.shareButton}
-            delayPressIn={0}
-          >
-            <Text style={styles.shareButtonText}>Share 🎉</Text>
-          </TouchableOpacity>
-        </View>
+        </Animated.View>
+
+        {/* Progress Card */}
+        <Animated.View entering={FadeInDown.delay(150).springify()}>
+          <View style={styles.progressCard}>
+            <View style={styles.progressCardLeft}>
+              <View style={styles.progressCircle}>
+                <Svg width="52" height="52" viewBox="0 0 36 36">
+                  <Path
+                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                    fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="3" strokeLinecap="round"
+                  />
+                  <Path
+                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                    fill="none" stroke="white" strokeWidth="3" strokeLinecap="round"
+                    strokeDasharray={`${overallProgress}, 100`}
+                  />
+                </Svg>
+                <View style={styles.progressCircleText}>
+                  <Text style={styles.progressPercentage}>{Math.round(overallProgress)}%</Text>
+                </View>
+              </View>
+              <View style={styles.progressInfo}>
+                <Text style={styles.progressLabel}>Overall Progress</Text>
+                <Text style={styles.progressDetail}>{completedLessons} of {totalLessons} lessons</Text>
+              </View>
+            </View>
+            <TouchableOpacity onPress={handleShareProgress} style={styles.shareButton} delayPressIn={0}>
+              <Text style={styles.shareButtonText}>Share 🎉</Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
       </Animated.View>
 
       {/* Main Scrollable Content */}
       <Animated.ScrollView
         showsVerticalScrollIndicator={false}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
-        )}
+        onScroll={scrollHandler}
         scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
@@ -521,7 +467,6 @@ export const HomeScreen: React.FC<HomeProps> = ({
             progressBackgroundColor="#1F2937"
           />
         }
-        style={{ opacity: fadeAnim }}
         contentContainerStyle={styles.scrollContent}
         decelerationRate="normal"
         scrollEnabled={true}
@@ -538,25 +483,28 @@ export const HomeScreen: React.FC<HomeProps> = ({
               color="#4F46E5"
               badge="New"
               onPress={() => onNavigateToTab(3)}
+              index={0}
             />
             <QuickActionButton
               icon={<FileTextIcon size={28} color="white" />}
               label="Notes"
               color="#059669"
               onPress={() => onNavigateToTab(2)}
+              index={1}
             />
             <QuickActionButton
               icon={<QuizIcon size={28} color="white" />}
               label="Quizzes"
               color="#D97706"
               onPress={() => onNavigateToTab(1)}
+              index={2}
             />
           </View>
         </View>
 
         {/* Continue Learning Banner */}
         {nextLesson && nextCourse && (
-          <View style={styles.continueLearningSection}>
+          <Animated.View entering={FadeInUp.delay(200).springify()} style={styles.continueLearningSection}>
             <Text style={styles.sectionTitle}>📚 Continue Learning</Text>
             <TouchableOpacity
               onPress={() => onSelectSubject(nextCourse)}
@@ -576,9 +524,7 @@ export const HomeScreen: React.FC<HomeProps> = ({
                 </View>
                 <View style={styles.continueTextContainer}>
                   <Text style={styles.continueLabel}>Next Up</Text>
-                  <Text style={styles.continueTitle} numberOfLines={1}>
-                    {nextLesson?.title || 'Lesson'}
-                  </Text>
+                  <Text style={styles.continueTitle} numberOfLines={1}>{nextLesson?.title || 'Lesson'}</Text>
                   <Text style={styles.continueSubtitle} numberOfLines={1}>
                     {nextCourse?.title || 'Course'} • {nextLesson?.duration || '0 min'}
                   </Text>
@@ -588,7 +534,7 @@ export const HomeScreen: React.FC<HomeProps> = ({
                 </View>
               </View>
             </TouchableOpacity>
-          </View>
+          </Animated.View>
         )}
 
         {/* My Courses Section */}
@@ -598,26 +544,23 @@ export const HomeScreen: React.FC<HomeProps> = ({
               <TrophyIcon size={20} color="#F59E0B" />
               <Text style={styles.sectionTitle}>My Courses</Text>
             </View>
-            <TouchableOpacity 
-              onPress={() => onNavigateToTab(1)}
-              delayPressIn={0}
-            >
+            <TouchableOpacity onPress={() => onNavigateToTab(1)} delayPressIn={0}>
               <Text style={styles.viewAllButton}>View All →</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Render courses individually to prevent auto-navigation on scroll */}
-          {SUBJECTS.map((subject) => (
+          {SUBJECTS.map((subject, i) => (
             <CourseCard
               key={subject.id}
               subject={subject}
               onPress={() => onSelectSubject(subject)}
+              index={i}
             />
           ))}
         </View>
 
         {/* Motivational Banner */}
-        <View style={styles.motivationalSection}>
+        <Animated.View entering={FadeInUp.delay(300).springify()} style={styles.motivationalSection}>
           <View style={styles.motivationalCard}>
             <Text style={styles.motivationalEmoji}>🎯</Text>
             <Text style={styles.motivationalTitle}>Ready to Learn Something New?</Text>
@@ -633,7 +576,7 @@ export const HomeScreen: React.FC<HomeProps> = ({
               <Text style={styles.startLearningText}>Start a Quiz →</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </Animated.View>
 
         {/* Bottom Padding */}
         <View style={{ height: 40 }} />
@@ -651,36 +594,39 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: '#7C5CFF',
-    paddingTop: Platform.OS === 'ios' ? 50 : 30,
-    paddingBottom: 24,
+    paddingTop: Platform.OS === 'ios' ? 44 : 18,
+    paddingBottom: 16,
     paddingHorizontal: 20,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
     shadowColor: '#7C5CFF',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 8,
   },
   headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 12,
   },
   headerLeft: {
     flex: 1,
   },
   greeting: {
-    color: 'rgba(255,255,255,0.9)',
-    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 11,
     fontWeight: '600',
-    marginBottom: 4,
+    marginBottom: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   studentName: {
     color: 'white',
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: 'bold',
+    letterSpacing: -0.3,
   },
   avatarButton: {
     position: 'relative',
@@ -704,14 +650,14 @@ const styles = StyleSheet.create({
     borderColor: 'white',
   },
   progressCard: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderRadius: 20,
-    padding: 16,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 14,
+    padding: 10,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: 'rgba(255,255,255,0.15)',
   },
   progressCardLeft: {
     flexDirection: 'row',
@@ -720,7 +666,7 @@ const styles = StyleSheet.create({
   },
   progressCircle: {
     position: 'relative',
-    marginRight: 12,
+    marginRight: 10,
   },
   progressCircleText: {
     position: 'absolute',
@@ -733,7 +679,7 @@ const styles = StyleSheet.create({
   },
   progressPercentage: {
     color: 'white',
-    fontSize: 16,
+    fontSize: 11,
     fontWeight: 'bold',
   },
   progressInfo: {
@@ -741,13 +687,13 @@ const styles = StyleSheet.create({
   },
   progressLabel: {
     color: 'rgba(255,255,255,0.8)',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
-    marginBottom: 2,
+    marginBottom: 1,
   },
   progressDetail: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 11,
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 10,
   },
   shareButton: {
     backgroundColor: 'white',

@@ -8,6 +8,7 @@ import {
   Animated,
   Dimensions,
   BackHandler,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "./src/theme/Colors";
@@ -21,6 +22,8 @@ import { ProfileScreen } from "./src/features/profile/ProfileScreen";
 import { SubjectsScreen } from "./src/features/subjects/SubjectsScreen";
 import { Subject } from "./src/data/mockData";
 import { ExitConfirmModal } from "./src/shared/components/ExitConfirmModal";
+import { supabase } from "./src/lib/supabase";
+import { ToastModal, ToastConfig } from "./src/shared/components/ToastModal";
 
 const TABS = [
   { label: "Home", icon: HomeIcon },
@@ -54,11 +57,31 @@ function App() {
 function AppContent() {
   const insets = useSafeAreaInsets();
 
+  const [user, setUser] = useState<any>(null);
+  const [initializing, setInitializing] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [authScreen, setAuthScreen] = useState<"login" | "signup" | "forgot">("login");
   const [activeTab, setActiveTab] = useState(0);
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
   const [exitModalVisible, setExitModalVisible] = useState(false);
+  const [toast, setToast] = useState<ToastConfig>({ visible: false, message: "" });
+
+  // ─── Supabase Auth Session Listener ───────────────────────────────────────
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setIsLoggedIn(!!session);
+      setInitializing(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      setIsLoggedIn(!!session);
+      setInitializing(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   // Animated sliding indicator position
   const indicatorX = useRef(new Animated.Value(0)).current;
@@ -190,6 +213,14 @@ function AppContent() {
     return () => backHandler.remove();
   }, [activeTab, selectedSubject,]);
 
+  if (initializing) {
+    return (
+      <View style={{ flex: 1, backgroundColor: "#0F172A", alignItems: "center", justifyContent: "center" }}>
+        <ActivityIndicator size="large" color="#7C5CFF" />
+      </View>
+    );
+  }
+
   if (!isLoggedIn) {
     if (authScreen === "signup") {
       return (
@@ -231,6 +262,7 @@ function AppContent() {
           <HomeScreen
             onNavigateToTab={handleNavigateToTab}
             onSelectSubject={handleSelectSubject}
+            user={user}
           />
         );
       case 1:
@@ -242,7 +274,11 @@ function AppContent() {
       case 4:
         return (
           <ProfileScreen
-            onLogout={() => setIsLoggedIn(false)}
+            user={user}
+            onLogout={async () => {
+              setToast({ visible: true, type: "info", title: "Signed Out", message: "You have been successfully logged out. See you soon! 👋" });
+              setTimeout(() => supabase.auth.signOut(), 1200);
+            }}
             onBack={() => handleNavigateToTab(0)}
           />
         );
@@ -251,6 +287,7 @@ function AppContent() {
           <HomeScreen
             onNavigateToTab={handleNavigateToTab}
             onSelectSubject={handleSelectSubject}
+            user={user}
           />
         );
     }
@@ -359,6 +396,9 @@ function AppContent() {
           </View>
         </View>
       )}
+
+      {/* Toast Notification */}
+      <ToastModal toast={toast} onHide={() => setToast(t => ({ ...t, visible: false }))} />
 
       {/* Exit Confirmation Modal */}
       <ExitConfirmModal

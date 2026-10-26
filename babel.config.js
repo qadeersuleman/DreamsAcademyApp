@@ -3,5 +3,7 @@ module.exports = {
     ['module:@react-native/babel-preset', { jsxImportSource: 'nativewind' }],
     'nativewind/babel',
   ],
-  plugins: [],
+  plugins: [
+    'react-native-reanimated/plugin',
+  ],
 };
