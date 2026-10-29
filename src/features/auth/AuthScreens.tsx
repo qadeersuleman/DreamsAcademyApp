@@ -12,64 +12,58 @@ import {
   Animated,
   ActivityIndicator,
   Image,
+  StyleSheet,
+  Linking,
 } from "react-native";
 import Svg, { Path, Circle, Line } from "react-native-svg";
+import Colors from "../../theme/Colors";
 import { supabase } from "../../lib/supabase";
 import { ToastModal, ToastConfig } from "../../shared/components/ToastModal";
+import { WhatsAppIcon } from "../../shared/widgets/Icons";
 
 const { width, height } = Dimensions.get("window");
 
-// Particle Background Component
-const ParticleBackground: React.FC = () => {
-  const particles = Array.from({ length: 25 }).map((_, i) => ({
-    id: i,
-    size: Math.random() * 3 + 1,
-    startX: Math.random() * width,
-    startY: Math.random() * height,
-    opacity: new Animated.Value(0),
-  }));
-
-  useEffect(() => {
-    particles.forEach((particle, index) => {
-      Animated.timing(particle.opacity, {
-        toValue: 0.2,
-        duration: 1000,
-        delay: index * 80,
-        useNativeDriver: true,
-      }).start();
-    });
-  }, []);
-
+// Warm Theme Background Glow Blobs
+const ThemeBackground: React.FC = () => {
   return (
-    <View className="absolute w-full h-full overflow-hidden">
-      {/* Decorative Blur Blobs */}
-      <View 
-        className="absolute w-72 h-72 rounded-full bg-indigo-600/10"
-        style={{ top: -80, left: -60 }}
-      />
-      <View 
-        className="absolute w-80 h-80 rounded-full bg-purple-600/10"
-        style={{ bottom: -120, right: -60 }}
-      />
-
-      {particles.map((particle) => (
-        <Animated.View
-          key={particle.id}
-          className="absolute bg-white/10 rounded-full"
-          style={{
-            width: particle.size,
-            height: particle.size,
-            left: particle.startX,
-            top: particle.startY,
-            opacity: particle.opacity,
-          }}
-        />
-      ))}
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      <View style={styles.topGlowBlob} />
+      <View style={styles.bottomGlowBlob} />
     </View>
   );
 };
 
-// Modern Input Field with Floating Label
+// Eye toggle icon for passwords
+const EyeIcon: React.FC<{ visible: boolean; color: string }> = ({ visible, color }) => {
+  if (visible) {
+    return (
+      <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+        <Path
+          d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"
+          stroke={color}
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <Circle cx="12" cy="12" r="3" stroke={color} strokeWidth="1.8" />
+      </Svg>
+    );
+  }
+  return (
+    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"
+        stroke={color}
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Line x1="1" y1="1" x2="23" y2="23" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
+    </Svg>
+  );
+};
+
+// Modern Input Field matching App Theme
 const ModernInput: React.FC<{
   icon: "user" | "mail" | "lock";
   label: string;
@@ -80,39 +74,15 @@ const ModernInput: React.FC<{
   autoCapitalize?: "none" | "sentences";
 }> = ({ icon, label, value, onChangeText, secureTextEntry, keyboardType, autoCapitalize }) => {
   const [isFocused, setIsFocused] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const translateY = useRef(new Animated.Value(0)).current;
-  const scale = useRef(new Animated.Value(1)).current;
-  const labelTranslateY = useRef(new Animated.Value(0)).current;
-  const labelScale = useRef(new Animated.Value(1)).current;
 
   const handleFocus = () => {
     setIsFocused(true);
     Animated.spring(translateY, {
-      toValue: -4,
+      toValue: -2,
       useNativeDriver: true,
       damping: 15,
-      mass: 1,
-      stiffness: 150,
-    }).start();
-    Animated.spring(scale, {
-      toValue: 1.02,
-      useNativeDriver: true,
-      damping: 15,
-      mass: 1,
-      stiffness: 150,
-    }).start();
-    Animated.spring(labelTranslateY, {
-      toValue: -24,
-      useNativeDriver: true,
-      damping: 15,
-      mass: 1,
-      stiffness: 150,
-    }).start();
-    Animated.spring(labelScale, {
-      toValue: 0.85,
-      useNativeDriver: true,
-      damping: 15,
-      mass: 1,
       stiffness: 150,
     }).start();
   };
@@ -123,56 +93,32 @@ const ModernInput: React.FC<{
       toValue: 0,
       useNativeDriver: true,
       damping: 15,
-      mass: 1,
       stiffness: 150,
     }).start();
-    Animated.spring(scale, {
-      toValue: 1,
-      useNativeDriver: true,
-      damping: 15,
-      mass: 1,
-      stiffness: 150,
-    }).start();
-    if (!value) {
-      Animated.spring(labelTranslateY, {
-        toValue: 0,
-        useNativeDriver: true,
-        damping: 15,
-        mass: 1,
-        stiffness: 150,
-      }).start();
-      Animated.spring(labelScale, {
-        toValue: 1,
-        useNativeDriver: true,
-        damping: 15,
-        mass: 1,
-        stiffness: 150,
-      }).start();
-    }
   };
 
   const renderIcon = () => {
-    const iconColor = isFocused ? "#7C5CFF" : "#9CA3AF";
+    const iconColor = isFocused ? Colors.accent : Colors.textMuted;
     switch (icon) {
       case "user":
         return (
-          <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-            <Path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke={iconColor} strokeWidth="2" strokeLinecap="round"/>
-            <Circle cx="12" cy="7" r="4" stroke={iconColor} strokeWidth="2"/>
+          <Svg width={17} height={17} viewBox="0 0 24 24" fill="none">
+            <Path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke={iconColor} strokeWidth="1.8" strokeLinecap="round"/>
+            <Circle cx="12" cy="7" r="4" stroke={iconColor} strokeWidth="1.8"/>
           </Svg>
         );
       case "mail":
         return (
-          <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-            <Path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke={iconColor} strokeWidth="2"/>
-            <Path d="M22 6l-10 7L2 6" stroke={iconColor} strokeWidth="2" strokeLinecap="round"/>
+          <Svg width={17} height={17} viewBox="0 0 24 24" fill="none">
+            <Path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke={iconColor} strokeWidth="1.8"/>
+            <Path d="M22 6l-10 7L2 6" stroke={iconColor} strokeWidth="1.8" strokeLinecap="round"/>
           </Svg>
         );
       case "lock":
         return (
-          <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-            <Path d="M19 11H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2z" stroke={iconColor} strokeWidth="2"/>
-            <Path d="M7 11V7a5 5 0 0 1 10 0v4" stroke={iconColor} strokeWidth="2" strokeLinecap="round"/>
+          <Svg width={17} height={17} viewBox="0 0 24 24" fill="none">
+            <Path d="M19 11H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2z" stroke={iconColor} strokeWidth="1.8"/>
+            <Path d="M7 11V7a5 5 0 0 1 10 0v4" stroke={iconColor} strokeWidth="1.8" strokeLinecap="round"/>
           </Svg>
         );
       default:
@@ -180,46 +126,41 @@ const ModernInput: React.FC<{
     }
   };
 
+  const isPassword = secureTextEntry !== undefined;
+
   return (
-    <Animated.View 
-      className="mb-6"
-      style={{ transform: [{ translateY: translateY }, { scale: scale }] }}
-    >
-      <Animated.Text
+    <Animated.View style={[{ marginBottom: 12 }, { transform: [{ translateY }] }]}>
+      <Text style={[styles.inputLabel, isFocused && { color: Colors.accent }]}>
+        {label}
+      </Text>
+      <View
         style={[
-          {
-            position: "absolute",
-            left: 48,
-            top: 14,
-            zIndex: 1,
-            fontSize: 13,
-            fontWeight: "bold",
-            transform: [{ translateY: labelTranslateY }, { scale: labelScale }],
-          },
-          { color: isFocused ? "#7C5CFF" : "#9CA3AF" }
+          styles.inputContainer,
+          isFocused && styles.inputContainerFocused,
         ]}
       >
-        {label}
-      </Animated.Text>
-      <View
-        className={`flex-row items-center rounded-2xl border-2 px-4 py-1.5 ${
-          isFocused ? "border-accent bg-accent/5" : "border-white/10 bg-white/5"
-        }`}
-      >
-        <View className="mr-3">
-          {renderIcon()}
-        </View>
+        <View style={{ marginRight: 8 }}>{renderIcon()}</View>
         <TextInput
-          className="flex-1 py-3 text-white font-semibold text-base"
+          style={styles.textInput}
           value={value}
           onChangeText={onChangeText}
           onFocus={handleFocus}
           onBlur={handleBlur}
-          secureTextEntry={secureTextEntry}
+          secureTextEntry={isPassword ? !showPassword : false}
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
-          placeholderTextColor="transparent"
+          placeholder={`Enter your ${label.toLowerCase()}`}
+          placeholderTextColor={Colors.textMuted}
         />
+        {isPassword && (
+          <TouchableOpacity
+            onPress={() => setShowPassword(!showPassword)}
+            style={{ padding: 4 }}
+            activeOpacity={0.7}
+          >
+            <EyeIcon visible={showPassword} color={isFocused ? Colors.accent : Colors.textMuted} />
+          </TouchableOpacity>
+        )}
       </View>
     </Animated.View>
   );
@@ -230,19 +171,17 @@ const ModernButton: React.FC<{
   title: string;
   onPress: () => void;
   variant?: "primary" | "secondary";
-  icon?: "log-in" | "user-plus" | "send" | "arrow-left";
   loading?: boolean;
   disabled?: boolean;
-}> = ({ title, onPress, variant = "primary", icon, loading, disabled }) => {
+}> = ({ title, onPress, variant = "primary", loading, disabled }) => {
   const scale = useRef(new Animated.Value(1)).current;
 
   const handlePressIn = () => {
     if (disabled || loading) return;
     Animated.spring(scale, {
-      toValue: 0.96,
+      toValue: 0.97,
       useNativeDriver: true,
       damping: 15,
-      mass: 1,
       stiffness: 150,
     }).start();
   };
@@ -253,61 +192,44 @@ const ModernButton: React.FC<{
       toValue: 1,
       useNativeDriver: true,
       damping: 15,
-      mass: 1,
       stiffness: 150,
     }).start();
     onPress();
-  };
-
-  const renderIcon = () => {
-    if (loading) {
-      return (
-        <View className="mr-2">
-          <ActivityIndicator size="small" color={variant === "primary" ? "#FFFFFF" : "#7C5CFF"} />
-        </View>
-      );
-    }
-    if (!icon) return null;
-    const color = variant === "primary" ? "#FFFFFF" : "#7C5CFF";
-    return (
-      <View className="mr-2">
-        <Text style={{ color, fontSize: 14 }}>
-          {icon === "log-in" ? "→" : icon === "user-plus" ? "+" : icon === "send" ? "✉️" : "←"}
-        </Text>
-      </View>
-    );
   };
 
   return (
     <TouchableOpacity
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      activeOpacity={0.9}
+      activeOpacity={0.85}
       disabled={disabled || loading}
-      className="mb-4"
+      style={{ marginBottom: 10 }}
     >
       <Animated.View
-        style={{ transform: [{ scale }], opacity: disabled || loading ? 0.7 : 1 }}
-        className={`rounded-2xl py-4 px-6 flex-row items-center justify-center border ${
-          variant === "primary" 
-            ? "bg-accent border-accent/25" 
-            : "bg-white/10 border-white/10"
-        }`}
+        style={[
+          styles.btnBase,
+          variant === "primary" ? styles.btnPrimary : styles.btnSecondary,
+          { transform: [{ scale }], opacity: disabled || loading ? 0.7 : 1 },
+        ]}
       >
-        {renderIcon()}
-        <Text
-          className={`font-extrabold text-sm tracking-wider uppercase ${
-            variant === "primary" ? "text-white" : "text-accent"
-          }`}
-        >
-          {loading ? "Please wait..." : title}
-        </Text>
+        {loading ? (
+          <ActivityIndicator size="small" color={variant === "primary" ? "#FFFFFF" : Colors.accent} />
+        ) : (
+          <Text
+            style={[
+              styles.btnText,
+              variant === "primary" ? styles.btnTextPrimary : styles.btnTextSecondary,
+            ]}
+          >
+            {title}
+          </Text>
+        )}
       </Animated.View>
     </TouchableOpacity>
   );
 };
 
-// Main Login Screen
+// ─── LOGIN SCREEN ──────────────────────────────────────────────────────────
 export const LoginScreen: React.FC<{
   onLoginSuccess: () => void;
   onNavigateToSignup: () => void;
@@ -319,34 +241,32 @@ export const LoginScreen: React.FC<{
   const [toast, setToast] = useState<ToastConfig>({ visible: false, message: "" });
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const logoScale = useRef(new Animated.Value(0.5)).current;
-  const logoOpacity = useRef(new Animated.Value(0)).current;
+  const logoScale = useRef(new Animated.Value(0.7)).current;
 
   useEffect(() => {
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 800,
-      useNativeDriver: true,
-    }).start();
-    
-    Animated.spring(logoScale, {
-      toValue: 1,
-      useNativeDriver: true,
-      damping: 15,
-      mass: 1,
-      stiffness: 150,
-    }).start();
-    
-    Animated.timing(logoOpacity, {
-      toValue: 1,
-      duration: 600,
-      useNativeDriver: true,
-    }).start();
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 700,
+        useNativeDriver: true,
+      }),
+      Animated.spring(logoScale, {
+        toValue: 1,
+        tension: 50,
+        friction: 7,
+        useNativeDriver: true,
+      }),
+    ]).start();
   }, []);
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
-      setToast({ visible: true, type: "error", title: "Missing Fields", message: "Please enter your email and password." });
+      setToast({
+        visible: true,
+        type: "error",
+        title: "Missing Fields",
+        message: "Please enter your email and password.",
+      });
       return;
     }
 
@@ -358,57 +278,77 @@ export const LoginScreen: React.FC<{
       });
 
       if (error) {
-        setToast({ visible: true, type: "error", title: "Login Failed", message: error.message });
+        setToast({
+          visible: true,
+          type: "error",
+          title: "Login Failed",
+          message: error.message,
+        });
       } else if (data.user) {
-        setToast({ visible: true, type: "success", title: "Welcome Back!", message: `Good to see you, ${data.user.user_metadata?.full_name || data.user.email?.split('@')[0] || 'Student'}! 🎉` });
+        setToast({
+          visible: true,
+          type: "success",
+          title: "Welcome Back!",
+          message: `Good to see you, ${
+            data.user.user_metadata?.full_name || data.user.email?.split("@")[0] || "Student"
+          }! 🎉`,
+        });
         setTimeout(() => onLoginSuccess(), 1200);
       }
     } catch (err: any) {
-      setToast({ visible: true, type: "error", title: "Error", message: err?.message || "An unexpected error occurred." });
+      setToast({
+        visible: true,
+        type: "error",
+        title: "Error",
+        message: err?.message || "An unexpected error occurred.",
+      });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <View className="flex-1 bg-slate-950">
-      <ToastModal toast={toast} onHide={() => setToast(t => ({ ...t, visible: false }))} />
-      <StatusBar barStyle="light-content" />
-      <ParticleBackground />
+    <View style={styles.screenContainer}>
+      <ToastModal toast={toast} onHide={() => setToast((t) => ({ ...t, visible: false }))} />
+      <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
+      <ThemeBackground />
+
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        className="flex-1"
+        style={{ flex: 1 }}
       >
         <ScrollView
-          contentContainerStyle={{ flexGrow: 1, justifyContent: "center" }}
+          contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <Animated.View className="px-6 py-8" style={{ opacity: fadeAnim }}>
-            {/* Animated Logo Section */}
-            <Animated.View 
-              style={[
-                { transform: [{ scale: logoScale }], opacity: logoOpacity },
-                { alignItems: "center", marginBottom: 32 }
-              ]}
-            >
-              <View className="w-20 h-20 rounded-2xl overflow-hidden items-center justify-center shadow-lg mb-3 border border-white/10 bg-[#0F172A]">
+          <Animated.View style={[{ width: "100%", maxWidth: 420 }, { opacity: fadeAnim }]}>
+            {/* Logo and Brand Header */}
+            <View style={styles.headerArea}>
+              <Animated.View
+                style={[
+                  styles.logoWrapper,
+                  { transform: [{ scale: logoScale }] },
+                ]}
+              >
                 <Image
                   source={require("../../assets/logo-yellow.png")}
-                  style={{ width: "100%", height: "100%" }}
+                  style={styles.logoImage}
                   resizeMode="cover"
                 />
-              </View>
-              <Text className="text-2xl font-black text-white text-center tracking-tight uppercase">
-                Dreams Academy
-              </Text>
-              <Text className="text-[10px] text-accent font-extrabold text-center mt-1 uppercase tracking-widest">
-                Where Dreams Take Flight
-              </Text>
-            </Animated.View>
+              </Animated.View>
 
-            {/* Input Fields */}
-            <View className="mb-4">
+              <Text style={styles.brandTitle}>DREAMS VIRTUAL ACADEMY</Text>
+              <Text style={styles.brandSindhi}>
+                سنڌي شاگردن لاءِ سائنس، فزڪس ۽ نوڪرين جي تياري
+              </Text>
+              <Text style={styles.brandSubtitle}>Sign in to access your batches & mock tests</Text>
+            </View>
+
+            {/* Auth Form Card */}
+            <View style={styles.cardContainer}>
+              <Text style={styles.cardTitle}>Student Sign In</Text>
+
               <ModernInput
                 icon="mail"
                 label="Email Address"
@@ -417,6 +357,7 @@ export const LoginScreen: React.FC<{
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
+
               <ModernInput
                 icon="lock"
                 label="Password"
@@ -424,54 +365,45 @@ export const LoginScreen: React.FC<{
                 onChangeText={setPassword}
                 secureTextEntry
               />
-            </View>
 
-            {/* Forgot Password Link */}
-            <View className="items-end mb-8">
-              <TouchableOpacity onPress={onNavigateToForgot}>
-                <Text className="text-accent font-extrabold text-xs uppercase tracking-wide">
-                  Forgot Password?
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Login Button */}
-            <ModernButton
-              title="Sign In"
-              onPress={handleLogin}
-              icon="log-in"
-              loading={loading}
-            />
-
-            {/* Sign Up Link */}
-            <View className="flex-row justify-center mt-6">
-              <Text className="text-gray-400 text-xs font-semibold">Don't have an account? </Text>
-              <TouchableOpacity onPress={onNavigateToSignup}>
-                <Text className="text-accent font-extrabold text-xs uppercase tracking-wide">Create One</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Social Login Section */}
-            <View className="mt-10">
-              <View className="flex-row items-center mb-6">
-                <View className="flex-1 h-px bg-white/10" />
-                <Text className="text-gray-500 px-4 text-[9px] font-extrabold uppercase tracking-widest">OR CONTINUE WITH</Text>
-                <View className="flex-1 h-px bg-white/10" />
+              {/* Forgot Password Link */}
+              <View style={styles.forgotRow}>
+                <TouchableOpacity onPress={onNavigateToForgot} activeOpacity={0.7}>
+                  <Text style={styles.forgotText}>Forgot Password?</Text>
+                </TouchableOpacity>
               </View>
-              <View className="flex-row justify-center space-x-4">
-                {["G", "A", "F"].map((social, index) => (
-                  <TouchableOpacity
-                    key={social}
-                    onPress={() => {}}
-                    className="w-11 h-11 bg-white/5 border border-white/10 rounded-full items-center justify-center"
-                  >
-                    <Text className="text-gray-400 text-lg font-black">
-                      {social}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+
+              {/* Sign In Button */}
+              <ModernButton
+                title="Sign In to Account"
+                onPress={handleLogin}
+                loading={loading}
+              />
+
+              {/* Switch to Signup */}
+              <View style={styles.switchRow}>
+                <Text style={styles.switchText}>Don't have an account? </Text>
+                <TouchableOpacity onPress={onNavigateToSignup} activeOpacity={0.7}>
+                  <Text style={styles.switchLink}>Create Account</Text>
+                </TouchableOpacity>
               </View>
             </View>
+
+            {/* WhatsApp Admission Assistance */}
+            <TouchableOpacity
+              style={styles.whatsappHelpPill}
+              onPress={() =>
+                Linking.openURL(
+                  "https://wa.me/923018183624?text=Salam%20Sir%20Dilshad!%20I%20need%20help%20logging%20in%20to%20Dreams%20Academy."
+                ).catch(() => {})
+              }
+              activeOpacity={0.8}
+            >
+              <WhatsAppIcon size={15} color="#10B981" />
+              <Text style={styles.whatsappHelpText}>
+                Need Help? Contact Sir Dilshad on WhatsApp (0301-8183624)
+              </Text>
+            </TouchableOpacity>
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -479,7 +411,7 @@ export const LoginScreen: React.FC<{
   );
 };
 
-// Sign Up Screen
+// ─── SIGNUP SCREEN ─────────────────────────────────────────────────────────
 export const SignupScreen: React.FC<{
   onLoginSuccess: () => void;
   onNavigateToLogin: () => void;
@@ -490,14 +422,34 @@ export const SignupScreen: React.FC<{
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<ToastConfig>({ visible: false, message: "" });
 
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 600,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
   const handleSignup = async () => {
     if (!name.trim() || !email.trim() || !password.trim()) {
-      setToast({ visible: true, type: "error", title: "Missing Fields", message: "Please fill in all fields." });
+      setToast({
+        visible: true,
+        type: "error",
+        title: "Missing Fields",
+        message: "Please fill in all fields.",
+      });
       return;
     }
 
     if (password.length < 6) {
-      setToast({ visible: true, type: "error", title: "Weak Password", message: "Password must be at least 6 characters." });
+      setToast({
+        visible: true,
+        type: "error",
+        title: "Weak Password",
+        message: "Password must be at least 6 characters.",
+      });
       return;
     }
 
@@ -514,107 +466,123 @@ export const SignupScreen: React.FC<{
       });
 
       if (error) {
-        setToast({ visible: true, type: "error", title: "Sign Up Failed", message: error.message });
+        setToast({
+          visible: true,
+          type: "error",
+          title: "Sign Up Failed",
+          message: error.message,
+        });
       } else if (data.user) {
-        setToast({ visible: true, type: "success", title: "Account Created!", message: `Welcome to Dreams Academy, ${name.trim()}! 🎓` });
+        setToast({
+          visible: true,
+          type: "success",
+          title: "Account Created!",
+          message: `Welcome to Dreams Academy, ${name.trim()}! 🎓`,
+        });
         setTimeout(() => onLoginSuccess(), 1400);
       }
     } catch (err: any) {
-      setToast({ visible: true, type: "error", title: "Error", message: err?.message || "An unexpected error occurred." });
+      setToast({
+        visible: true,
+        type: "error",
+        title: "Error",
+        message: err?.message || "An unexpected error occurred.",
+      });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <View className="flex-1 bg-slate-950">
-      <ToastModal toast={toast} onHide={() => setToast(t => ({ ...t, visible: false }))} />
-      <ParticleBackground />
+    <View style={styles.screenContainer}>
+      <ToastModal toast={toast} onHide={() => setToast((t) => ({ ...t, visible: false }))} />
+      <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
+      <ThemeBackground />
+
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        className="flex-1"
+        style={{ flex: 1 }}
       >
         <ScrollView
+          contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ flexGrow: 1, justifyContent: "center" }}
           keyboardShouldPersistTaps="handled"
         >
-          <View className="px-6 pt-12 pb-8">
-            {/* Animated Header */}
-            <View className="items-center mb-6">
-              <View className="w-16 h-16 rounded-2xl overflow-hidden items-center justify-center mb-4 border border-white/10 bg-[#0F172A]">
+          <Animated.View style={[{ width: "100%", maxWidth: 420 }, { opacity: fadeAnim }]}>
+            {/* Header */}
+            <View style={styles.headerArea}>
+              <View style={styles.logoWrapper}>
                 <Image
                   source={require("../../assets/logo-yellow.png")}
-                  style={{ width: "100%", height: "100%" }}
+                  style={styles.logoImage}
                   resizeMode="cover"
                 />
               </View>
-              <Text className="text-2xl font-black text-white text-center uppercase tracking-tight">
-                Join the Journey
+
+              <Text style={styles.brandTitle}>Join Dreams Academy</Text>
+              <Text style={styles.brandSindhi}>
+                سنڌي ٻوليءَ ۾ آسان ترين تعليم — اڄ ئي داخلا وٺو
               </Text>
-              <Text className="text-[10px] text-accent font-extrabold text-center mt-1 uppercase tracking-widest">
-                Start your learning adventure today
-              </Text>
+              <Text style={styles.brandSubtitle}>Create your free student account</Text>
             </View>
 
-            {/* Form Fields */}
-            <View className="mt-2">
+            {/* Form Card */}
+            <View style={styles.cardContainer}>
+              <Text style={styles.cardTitle}>Student Registration</Text>
+
               <ModernInput
                 icon="user"
-                label="Full Name"
+                label="Full Name (شاگرد جو نالو)"
                 value={name}
                 onChangeText={setName}
               />
+
               <ModernInput
                 icon="mail"
-                label="Email Address"
+                label="Email Address (اي ميل)"
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
+
               <ModernInput
                 icon="lock"
-                label="Password"
+                label="Password (پاسورڊ)"
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry
               />
-            </View>
 
-            {/* Terms and Conditions */}
-            <View className="flex-row items-center justify-center mb-8">
-              <View className="w-3.5 h-3.5 border border-accent rounded bg-accent/10 mr-2" />
-              <Text className="text-gray-400 text-[9px] font-semibold">
-                I agree to the{" "}
-                <Text className="text-accent font-extrabold">Terms of Service</Text> and{" "}
-                <Text className="text-accent font-extrabold">Privacy Policy</Text>
-              </Text>
-            </View>
+              <View style={styles.termsRow}>
+                <Text style={styles.termsText}>
+                  By creating an account, you agree to Dreams Virtual Academy's study guidelines.
+                </Text>
+              </View>
 
-            {/* Sign Up Button */}
-            <ModernButton
-              title="Create Account"
-              onPress={handleSignup}
-              icon="user-plus"
-              loading={loading}
-            />
+              {/* Submit Button */}
+              <ModernButton
+                title="Create Student Account"
+                onPress={handleSignup}
+                loading={loading}
+              />
 
-            {/* Login Link */}
-            <View className="flex-row justify-center mt-6">
-              <Text className="text-gray-400 text-xs font-semibold">Already have an account? </Text>
-              <TouchableOpacity onPress={onNavigateToLogin}>
-                <Text className="text-accent font-extrabold text-xs uppercase tracking-wide">Sign In</Text>
-              </TouchableOpacity>
+              {/* Switch to Login */}
+              <View style={styles.switchRow}>
+                <Text style={styles.switchText}>Already have an account? </Text>
+                <TouchableOpacity onPress={onNavigateToLogin} activeOpacity={0.7}>
+                  <Text style={styles.switchLink}>Sign In</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
+          </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
   );
 };
 
-// Forgot Password Screen
+// ─── FORGOT PASSWORD SCREEN ────────────────────────────────────────────────
 export const ForgotPasswordScreen: React.FC<{
   onNavigateToLogin: () => void;
 }> = ({ onNavigateToLogin }) => {
@@ -622,18 +590,11 @@ export const ForgotPasswordScreen: React.FC<{
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const shake = useRef(new Animated.Value(0)).current;
 
   const handleSubmit = async () => {
     setErrorMsg(null);
     if (!email.trim()) {
-      Animated.sequence([
-        Animated.timing(shake, { toValue: 10, duration: 50, useNativeDriver: true }),
-        Animated.timing(shake, { toValue: -10, duration: 50, useNativeDriver: true }),
-        Animated.timing(shake, { toValue: 5, duration: 50, useNativeDriver: true }),
-        Animated.timing(shake, { toValue: -5, duration: 50, useNativeDriver: true }),
-        Animated.timing(shake, { toValue: 0, duration: 50, useNativeDriver: true }),
-      ]).start();
+      setErrorMsg("Please enter your registered email address.");
       return;
     }
 
@@ -653,116 +614,330 @@ export const ForgotPasswordScreen: React.FC<{
   };
 
   return (
-    <View className="flex-1 bg-slate-950">
-      <ParticleBackground />
+    <View style={styles.screenContainer}>
+      <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
+      <ThemeBackground />
+
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        className="flex-1 justify-center px-6"
+        style={{ flex: 1 }}
       >
-        <Animated.View style={{ transform: [{ translateX: shake }] }}>
-          {!submitted ? (
-            <>
-              <View className="items-center mb-10">
-                <View className="w-20 h-20 bg-white/5 border border-white/10 rounded-full items-center justify-center mb-4">
-                  <Svg width={40} height={40} viewBox="0 0 24 24" fill="none" stroke="#7C5CFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <Path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
-                  </Svg>
-                </View>
-                <Text className="text-2xl font-black text-white text-center uppercase tracking-tight">
-                  Forgot Password?
-                </Text>
-                <Text className="text-[10px] text-gray-400 text-center mt-1 uppercase tracking-wider">
-                  Don't worry, it happens to the best of us
-                </Text>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={{ width: "100%", maxWidth: 420 }}>
+            {/* Header */}
+            <View style={styles.headerArea}>
+              <View style={styles.logoWrapper}>
+                <Image
+                  source={require("../../assets/logo-yellow.png")}
+                  style={styles.logoImage}
+                  resizeMode="cover"
+                />
               </View>
+              <Text style={styles.brandTitle}>Password Recovery</Text>
+              <Text style={styles.brandSindhi}>پنهنجو اڪائونٽ پاسورڊ بحال ڪريو</Text>
+            </View>
 
-              {/* Error Banner */}
-              {errorMsg && (
-                <View className="mb-4 p-3.5 rounded-2xl bg-red-500/15 border border-red-500/30">
-                  <Text className="text-red-400 text-xs font-bold text-center">
-                    ⚠️ {errorMsg}
+            <View style={styles.cardContainer}>
+              {!submitted ? (
+                <>
+                  <Text style={styles.cardTitle}>Reset Your Password</Text>
+                  <Text style={styles.cardSubtitle}>
+                    Enter your email and we'll send you instructions to reset your password.
                   </Text>
+
+                  {errorMsg && (
+                    <View style={styles.errorBox}>
+                      <Text style={styles.errorText}>⚠️ {errorMsg}</Text>
+                    </View>
+                  )}
+
+                  <ModernInput
+                    icon="mail"
+                    label="Email Address"
+                    value={email}
+                    onChangeText={setEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                  />
+
+                  <ModernButton
+                    title="Send Reset Instructions"
+                    onPress={handleSubmit}
+                    loading={loading}
+                  />
+
+                  <ModernButton
+                    title="Return to Sign In"
+                    onPress={onNavigateToLogin}
+                    variant="secondary"
+                  />
+                </>
+              ) : (
+                <View style={{ alignItems: "center", paddingVertical: 10 }}>
+                  <View style={styles.successIconCircle}>
+                    <Text style={{ fontSize: 28 }}>✉️</Text>
+                  </View>
+                  <Text style={styles.successTitle}>Check Your Inbox!</Text>
+                  <Text style={styles.successDesc}>
+                    We've sent password reset instructions to:{"\n"}
+                    <Text style={{ fontWeight: "bold", color: Colors.accent }}>{email}</Text>
+                  </Text>
+                  <ModernButton
+                    title="Back to Sign In"
+                    onPress={onNavigateToLogin}
+                  />
                 </View>
               )}
-
-              <View className="mt-4">
-                <ModernInput
-                  icon="mail"
-                  label="Email Address"
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                />
-              </View>
-
-              <View className="mt-8">
-                <ModernButton
-                  title="Send Reset Link"
-                  onPress={handleSubmit}
-                  icon="send"
-                  loading={loading}
-                />
-                <ModernButton
-                  title="Back to Sign In"
-                  onPress={onNavigateToLogin}
-                  variant="secondary"
-                  icon="arrow-left"
-                />
-              </View>
-            </>
-          ) : (
-            <View className="items-center">
-              <View className="w-24 h-24 rounded-full bg-green-500/15 items-center justify-center mb-6 border border-green-500/30">
-                <Svg width={40} height={40} viewBox="0 0 24 24" fill="none" stroke="#3DBE7A" strokeWidth="2">
-                  <Path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round"/>
-                </Svg>
-              </View>
-              <Text className="text-2xl font-black text-white text-center mb-2 uppercase tracking-tight">
-                Check Your Email!
-              </Text>
-              <Text className="text-[10px] text-gray-400 text-center mb-8 leading-4">
-                We've sent password reset instructions to{"\n"}
-                <Text className="text-accent font-extrabold">{email}</Text>
-              </Text>
-              <ModernButton
-                title="Return to Sign In"
-                onPress={onNavigateToLogin}
-                icon="log-in"
-              />
             </View>
-          )}
-        </Animated.View>
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </View>
   );
 };
 
-// Styles for any missing Tailwind classes
-const styles = {
-  particleContainer: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
-    overflow: 'hidden',
+const styles = StyleSheet.create({
+  screenContainer: {
+    flex: 1,
+    backgroundColor: Colors.background,
   },
-  particle: {
-    position: 'absolute',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 999,
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 24,
   },
-  blob1: {
-    position: 'absolute',
-    width: 288,
-    height: 288,
-    borderRadius: 999,
-    backgroundColor: 'rgba(79, 70, 229, 0.1)',
+  topGlowBlob: {
+    position: "absolute",
+    top: -50,
+    left: -40,
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: "rgba(244, 196, 127, 0.35)",
   },
-  blob2: {
-    position: 'absolute',
-    width: 320,
-    height: 320,
-    borderRadius: 999,
-    backgroundColor: 'rgba(168, 85, 247, 0.1)',
+  bottomGlowBlob: {
+    position: "absolute",
+    bottom: -60,
+    right: -40,
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    backgroundColor: "rgba(124, 92, 255, 0.12)",
   },
-};
+  headerArea: {
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  logoWrapper: {
+    width: 76,
+    height: 72,
+    borderRadius: 18,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 10,
+    borderWidth: 1.5,
+    borderColor: "rgba(244, 196, 127, 0.7)",
+    shadowColor: Colors.textDark,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  logoImage: {
+    width: "100%",
+    height: "100%",
+  },
+  brandTitle: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: Colors.textDark,
+    letterSpacing: 0.5,
+    textAlign: "center",
+    marginBottom: 2,
+  },
+  brandSindhi: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: Colors.accent,
+    textAlign: "center",
+    marginBottom: 4,
+  },
+  brandSubtitle: {
+    fontSize: 11,
+    color: Colors.textLight,
+    textAlign: "center",
+  },
+  cardContainer: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 22,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    shadowColor: Colors.textDark,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 3,
+    marginBottom: 14,
+  },
+  cardTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: Colors.textDark,
+    marginBottom: 12,
+  },
+  cardSubtitle: {
+    fontSize: 11,
+    color: Colors.textLight,
+    marginBottom: 14,
+    lineHeight: 16,
+  },
+  inputLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: Colors.textDark,
+    marginBottom: 4,
+  },
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  inputContainerFocused: {
+    borderColor: Colors.accent,
+    backgroundColor: Colors.accentLight,
+  },
+  textInput: {
+    flex: 1,
+    fontSize: 13,
+    color: Colors.textDark,
+    padding: 0,
+  },
+  forgotRow: {
+    alignItems: "flex-end",
+    marginBottom: 14,
+    marginTop: 2,
+  },
+  forgotText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: Colors.accent,
+  },
+  btnBase: {
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  btnPrimary: {
+    backgroundColor: Colors.accent,
+  },
+  btnSecondary: {
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  btnText: {
+    fontSize: 13,
+    fontWeight: "800",
+    letterSpacing: 0.3,
+  },
+  btnTextPrimary: {
+    color: "#FFFFFF",
+  },
+  btnTextSecondary: {
+    color: Colors.textDark,
+  },
+  switchRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginTop: 8,
+  },
+  switchText: {
+    fontSize: 11,
+    color: Colors.textLight,
+  },
+  switchLink: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: Colors.accent,
+  },
+  termsRow: {
+    marginBottom: 14,
+  },
+  termsText: {
+    fontSize: 10,
+    color: Colors.textMuted,
+    lineHeight: 14,
+    textAlign: "center",
+  },
+  errorBox: {
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 12,
+  },
+  errorText: {
+    fontSize: 11,
+    color: "#EF4444",
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  successIconCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "#ECFDF5",
+    borderWidth: 1,
+    borderColor: "#A7F3D0",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+  },
+  successTitle: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: Colors.textDark,
+    marginBottom: 6,
+  },
+  successDesc: {
+    fontSize: 12,
+    color: Colors.textLight,
+    textAlign: "center",
+    lineHeight: 18,
+    marginBottom: 16,
+  },
+  whatsappHelpPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    gap: 6,
+  },
+  whatsappHelpText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: Colors.textDark,
+  },
+});
+
+export default LoginScreen;

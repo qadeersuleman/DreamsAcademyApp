@@ -8,17 +8,18 @@ import {
   StatusBar,
   StyleSheet,
 } from "react-native";
+import Colors from "../../theme/Colors";
 
 const { width } = Dimensions.get("window");
 
 export const SplashScreen: React.FC = () => {
-  const logoScale = useRef(new Animated.Value(0.7)).current;
+  const logoScale = useRef(new Animated.Value(0.75)).current;
   const logoOpacity = useRef(new Animated.Value(0)).current;
   const contentFade = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    // 1. Entrance animation for the emblem
+    // 1. Entrance animation
     Animated.parallel([
       Animated.spring(logoScale, {
         toValue: 1,
@@ -36,7 +37,7 @@ export const SplashScreen: React.FC = () => {
       Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
-            toValue: 1.05,
+            toValue: 1.04,
             duration: 1200,
             useNativeDriver: true,
           }),
@@ -60,7 +61,7 @@ export const SplashScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
+      <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
 
       {/* Background Decorative Glow Blobs */}
       <View style={styles.glowBlob1} />
@@ -80,26 +81,30 @@ export const SplashScreen: React.FC = () => {
           <Image
             source={require("../../assets/logo-yellow.png")}
             style={styles.logoImage}
-            resizeMode="contain"
+            resizeMode="cover"
           />
         </Animated.View>
 
         {/* Tagline & Subtitle */}
         <Animated.View style={{ opacity: contentFade, alignItems: "center" }}>
+          <Text style={styles.academyTitle}>DREAMS VIRTUAL ACADEMY</Text>
+          <Text style={styles.sindhiSubtitle}>
+            سنڌي شاگردن لاءِ سائنس ۽ نوڪرين جي تياري
+          </Text>
           <Text style={styles.tagline}>WHERE DREAMS TAKE FLIGHT</Text>
 
           {/* Minimalist Modern Loading Dots */}
           <View style={styles.loadingContainer}>
-            <View style={[styles.dot, styles.dotActive]} />
+            <View style={[styles.dot, styles.dotPurple]} />
+            <View style={[styles.dot, styles.dotGold]} />
             <View style={[styles.dot, styles.dotDim]} />
-            <View style={[styles.dot, styles.dotFaint]} />
           </View>
         </Animated.View>
       </View>
 
       {/* Footer Branding */}
       <Animated.View style={[styles.footer, { opacity: contentFade }]}>
-        <Text style={styles.footerText}>Smart Education • FSc & Matric Prep</Text>
+        <Text style={styles.footerText}>Sindh's Premier Science & STS Academy • v2.0</Text>
       </Animated.View>
     </View>
   );
@@ -108,7 +113,7 @@ export const SplashScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0F172A",
+    backgroundColor: Colors.background,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -116,10 +121,10 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: -60,
     left: -40,
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    backgroundColor: "rgba(245, 166, 35, 0.08)",
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    backgroundColor: "rgba(244, 196, 127, 0.35)",
   },
   glowBlob2: {
     position: "absolute",
@@ -128,7 +133,7 @@ const styles = StyleSheet.create({
     width: 300,
     height: 300,
     borderRadius: 150,
-    backgroundColor: "rgba(124, 92, 255, 0.09)",
+    backgroundColor: "rgba(124, 92, 255, 0.12)",
   },
   centerContent: {
     alignItems: "center",
@@ -136,58 +141,79 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   logoContainer: {
-    width: width * 0.72,
-    height: width * 0.65,
-    maxWidth: 320,
-    maxHeight: 280,
+    width: 130,
+    height: 125,
+    borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 8,
+    marginBottom: 16,
+    overflow: "hidden",
+    shadowColor: Colors.textDark,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 14,
+    elevation: 8,
+    borderWidth: 1.5,
+    borderColor: "rgba(244, 196, 127, 0.6)",
   },
   logoImage: {
     width: "100%",
     height: "100%",
   },
-  tagline: {
-    color: "#F5A623",
-    fontSize: 11,
+  academyTitle: {
+    fontSize: 15,
     fontWeight: "900",
-    letterSpacing: 3,
-    textTransform: "uppercase",
-    marginTop: 4,
+    color: Colors.textDark,
+    letterSpacing: 0.6,
+    textAlign: "center",
+    marginBottom: 4,
+  },
+  sindhiSubtitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: Colors.accent,
+    textAlign: "center",
+    marginBottom: 4,
+    lineHeight: 18,
+  },
+  tagline: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: Colors.textLight,
+    letterSpacing: 1.2,
     textAlign: "center",
   },
   loadingContainer: {
     flexDirection: "row",
+    gap: 6,
+    marginTop: 20,
     alignItems: "center",
-    justifyContent: "center",
-    marginTop: 28,
   },
   dot: {
     width: 7,
     height: 7,
-    borderRadius: 4,
-    marginHorizontal: 4,
+    borderRadius: 3.5,
   },
-  dotActive: {
-    backgroundColor: "#F5A623",
+  dotPurple: {
+    backgroundColor: Colors.accent,
+  },
+  dotGold: {
+    backgroundColor: Colors.primaryDark,
   },
   dotDim: {
-    backgroundColor: "rgba(245, 166, 35, 0.45)",
-  },
-  dotFaint: {
-    backgroundColor: "rgba(245, 166, 35, 0.2)",
+    backgroundColor: "#E2E8F0",
   },
   footer: {
     position: "absolute",
-    bottom: 32,
+    bottom: 28,
     alignItems: "center",
   },
   footerText: {
-    color: "#64748B",
-    fontSize: 11,
+    fontSize: 10,
+    color: Colors.textMuted,
     fontWeight: "600",
-    letterSpacing: 0.5,
+    letterSpacing: 0.2,
   },
 });
 
+export default SplashScreen;
