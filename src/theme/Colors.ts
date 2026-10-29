@@ -1,24 +1,35 @@
 export const Colors = {
-  // Primary brand colors
-  primary: "#F4C47F",     // Warm soft peach
-  primaryDark: "#D9A461", // Slightly deeper peach tone
+  // Primary brand colors (Warm Gold / Peach)
+  primary: "#F4C47F",
+  primaryDark: "#D9A461",
+  primaryLight: "#FDF5EA",
 
   // Text colors
-  textDark: "#4A3B2F",    // Dark brown (for titles)
-  textLight: "#7A6A5C",   // Muted brown (for paragraphs)
+  textDark: "#1E1A16",    // Deep espresso black for crisp readability
+  textLight: "#736B63",   // Refined warm stone for subtitles & descriptions
+  textMuted: "#A69F97",   // Secondary subtle caption text
 
   // Background shades
-  background: "#FFF7ED",  // Very light cream
-  cardBackground: "#FFE8C7",
+  background: "#FAF7F2",  // Fresh, warm light canvas
+  cardBackground: "#FFFFFF", // Clean pure white card
+  cardBorder: "#EFE8DC",  // Delicate border
+  surfaceHover: "#F6F1E8",
 
-  // Accent colors
-  accent: "#7C5CFF",      // Modern purple (buttons/links)
-  accentLight: "#A892FF",
+  // Accent colors (Vibrant Royal Purple)
+  accent: "#7C5CFF",
+  accentDark: "#623EEA",
+  accentLight: "#F0ECFF",
+  accentGradient: ["#7C5CFF", "#9C83FF"],
 
-  // Feedback colors
-  success: "#3DBE7A",
-  warning: "#FFB020",
-  error: "#FF6B6B",
+  // Functional & Feedback colors
+  success: "#10B981",
+  successLight: "#ECFDF5",
+  warning: "#F59E0B",
+  warningLight: "#FFFBEB",
+  error: "#EF4444",
+  errorLight: "#FEF2F2",
+  info: "#0EA5E9",
+  infoLight: "#F0F9FF",
 };
 
 export default Colors;

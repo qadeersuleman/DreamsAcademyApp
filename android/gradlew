@@ -117,6 +117,11 @@ esac
 
 
 # Determine the Java command to use to start the JVM.
+# Force Java 21 for this project without affecting system or other projects
+if [ -d "/usr/lib/jvm/java-1.21.0-openjdk-amd64" ]; then
+    export JAVA_HOME="/usr/lib/jvm/java-1.21.0-openjdk-amd64"
+fi
+
 if [ -n "$JAVA_HOME" ] ; then
     if [ -x "$JAVA_HOME/jre/sh/java" ] ; then
         # IBM's JDK on AIX uses strange locations for the executables

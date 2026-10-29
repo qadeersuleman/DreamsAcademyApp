@@ -1,980 +1,1213 @@
-import React, { useRef, useState, useEffect, useCallback } from "react";
+import React, { useState, useMemo } from "react";
 import {
   View,
   Text,
   Image,
   TouchableOpacity,
-  RefreshControl,
-  Share,
-  Platform,
+  ScrollView,
+  TextInput,
   Dimensions,
   StyleSheet,
+  Modal,
+  Linking,
 } from "react-native";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withTiming,
-  FadeInDown,
-  FadeInUp,
-  FadeIn,
-  SlideInLeft,
-  useAnimatedScrollHandler,
-  interpolate,
-  Extrapolation,
-} from "react-native-reanimated";
-import Svg, { Path, Circle, Line, Polyline, Rect } from "react-native-svg";
-
+import Colors from "../../theme/Colors";
+import {
+  FACULTY_MEMBERS,
+  SCIENCE_DIAGRAMS,
+  ScienceDiagram,
+  FacultyMember,
+  COURSES_DATA,
+  TESTIMONIALS,
+} from "../../data/academyData";
+import {
+  WhatsAppIcon,
+  SparklesIcon,
+  SearchIcon,
+  NotesIcon,
+  TestsIcon,
+  BatchesIcon,
+  StarIcon,
+  ArrowRightIcon,
+  CheckIcon,
+  GraduationCapIcon,
+  UsersGroupIcon,
+  ChevronRightIcon,
+} from "../../shared/widgets/Icons";
+import Svg, { Path, Rect, Circle } from "react-native-svg";
 
 const { width } = Dimensions.get("window");
 
-interface HomeProps {
+interface HomeScreenProps {
   onNavigateToTab: (tabIndex: number) => void;
-  onSelectSubject: (subject: any) => void;
+  onSelectSubject?: (subject: any) => void;
   user?: any;
 }
 
-// ======================== ENHANCED CUSTOM ICONS ========================
+export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigateToTab, user }) => {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedDiagram, setSelectedDiagram] = useState<ScienceDiagram | null>(null);
 
-const PlayIcon: React.FC<{ size: number; color: string }> = ({ size, color }) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Circle cx="12" cy="12" r="11" stroke={color} strokeWidth="1.5" fill="rgba(255,255,255,0.1)"/>
-    <Path d="M9.5 7.5l8 4.5-8 4.5V7.5z" fill={color}/>
-  </Svg>
-);
-
-const FileTextIcon: React.FC<{ size: number; color: string }> = ({ size, color }) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke={color} strokeWidth="1.5" strokeLinejoin="round"/>
-    <Polyline points="14 2 14 8 20 8" stroke={color} strokeWidth="1.5"/>
-    <Line x1="16" y1="13" x2="8" y2="13" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
-    <Line x1="16" y1="17" x2="8" y2="17" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
-  </Svg>
-);
-
-const QuizIcon: React.FC<{ size: number; color: string }> = ({ size, color }) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Circle cx="12" cy="12" r="11" stroke={color} strokeWidth="1.5" fill="rgba(255,255,255,0.1)"/>
-    <Path d="M9.5 9.5a3 3 0 0 1 5 1c0 1.5-2.5 2.5-2.5 2.5" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
-    <Circle cx="12" cy="17" r="0.8" fill={color}/>
-  </Svg>
-);
-
-const ArrowRightIcon: React.FC<{ size: number; color: string }> = ({ size, color }) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Circle cx="12" cy="12" r="11" stroke={color} strokeWidth="1.5" fill="rgba(255,255,255,0.1)"/>
-    <Polyline points="10 8 14 12 10 16" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-  </Svg>
-);
-
-const ScienceIcon: React.FC<{ size: number; color: string }> = ({ size, color }) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Circle cx="12" cy="12" r="11" stroke={color} strokeWidth="1.5" fill="rgba(255,255,255,0.1)"/>
-    <Path d="M8 12h8M12 8v8" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
-    <Circle cx="12" cy="12" r="3" stroke={color} strokeWidth="1.5"/>
-    <Path d="M12 2l2 4M12 22l-2-4M2 12l4-2M22 12l-4 2" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
-  </Svg>
-);
-
-const MathIcon: React.FC<{ size: number; color: string }> = ({ size, color }) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Circle cx="12" cy="12" r="11" stroke={color} strokeWidth="1.5" fill="rgba(255,255,255,0.1)"/>
-    <Path d="M7 7l5 5m0 0l5 5m-5-5L7 17m5-5l5-5" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
-  </Svg>
-);
-
-const ChemistryIcon: React.FC<{ size: number; color: string }> = ({ size, color }) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Circle cx="12" cy="12" r="11" stroke={color} strokeWidth="1.5" fill="rgba(255,255,255,0.1)"/>
-    <Path d="M10 2v6l-4 8c-1 2 0 4 2 4h8c2 0 3-2 2-4l-4-8V2" stroke={color} strokeWidth="1.5" strokeLinejoin="round"/>
-    <Line x1="8" y1="14" x2="16" y2="14" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
-  </Svg>
-);
-
-const PhysicsIcon: React.FC<{ size: number; color: string }> = ({ size, color }) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Circle cx="12" cy="12" r="11" stroke={color} strokeWidth="1.5" fill="rgba(255,255,255,0.1)"/>
-    <Circle cx="12" cy="12" r="2" fill={color}/>
-    <Path d="M12 2a10 10 0 0 1 0 20" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
-    <Path d="M12 2a10 10 0 0 0 0 20" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
-    <Path d="M2 12h20" stroke={color} strokeWidth="1" strokeDasharray="2 2"/>
-  </Svg>
-);
-
-const ComputerIcon: React.FC<{ size: number; color: string }> = ({ size, color }) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Circle cx="12" cy="12" r="11" stroke={color} strokeWidth="1.5" fill="rgba(255,255,255,0.1)"/>
-    <Rect x="6" y="8" width="12" height="8" rx="1" stroke={color} strokeWidth="1.5"/>
-    <Line x1="10" y1="16" x2="14" y2="16" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
-    <Line x1="12" y1="14" x2="12" y2="12" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
-  </Svg>
-);
-
-const StarIcon: React.FC<{ size: number; color: string }> = ({ size, color }) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
-    <Path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-  </Svg>
-);
-
-const TrophyIcon: React.FC<{ size: number; color: string }> = ({ size, color }) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Path d="M6 9H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h2M18 9h2a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-2" stroke={color} strokeWidth="1.5"/>
-    <Path d="M6 3h12v6a6 6 0 1 1-12 0V3z" stroke={color} strokeWidth="1.5"/>
-    <Path d="M9 21h6M12 18v3" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
-  </Svg>
-);
-
-// ======================== SUBJECTS DATA ========================
-
-const SUBJECTS = [
-  {
-    id: "1",
-    title: "General Science",
-    description: "Basic concepts of science, experiments, and scientific methods",
-    icon: "science",
-    color: "#4F46E5",
-    gradientColors: ["#4F46E5", "#7C3AED"],
-    lessons: [
-      { id: "s1", title: "Introduction to Science", duration: "15 mins", completed: false, type: "video" },
-      { id: "s2", title: "Scientific Method", duration: "20 mins", completed: false, type: "note" },
-      { id: "s3", title: "Science Quiz", duration: "10 mins", completed: false, type: "quiz" },
-    ]
-  },
-  {
-    id: "2",
-    title: "Mathematics",
-    description: "Algebra, Geometry, Calculus, and problem solving",
-    icon: "math",
-    color: "#059669",
-    gradientColors: ["#059669", "#10B981"],
-    lessons: [
-      { id: "m1", title: "Algebra Basics", duration: "25 mins", completed: true, type: "video" },
-      { id: "m2", title: "Geometry Fundamentals", duration: "30 mins", completed: false, type: "note" },
-      { id: "m3", title: "Math Quiz", duration: "15 mins", completed: false, type: "quiz" },
-    ]
-  },
-  {
-    id: "3",
-    title: "Chemistry",
-    description: "Elements, compounds, chemical reactions, and periodic table",
-    icon: "chemistry",
-    color: "#D97706",
-    gradientColors: ["#D97706", "#F59E0B"],
-    lessons: [
-      { id: "c1", title: "Atoms and Molecules", duration: "20 mins", completed: false, type: "video" },
-      { id: "c2", title: "Periodic Table", duration: "25 mins", completed: false, type: "note" },
-      { id: "c3", title: "Chemistry Quiz", duration: "10 mins", completed: false, type: "quiz" },
-    ]
-  },
-  {
-    id: "4",
-    title: "Physics",
-    description: "Motion, energy, force, electricity, and modern physics",
-    icon: "physics",
-    color: "#DC2626",
-    gradientColors: ["#DC2626", "#EF4444"],
-    lessons: [
-      { id: "p1", title: "Laws of Motion", duration: "30 mins", completed: false, type: "video" },
-      { id: "p2", title: "Energy & Work", duration: "20 mins", completed: false, type: "note" },
-      { id: "p3", title: "Physics Quiz", duration: "15 mins", completed: false, type: "quiz" },
-    ]
-  },
-  {
-    id: "5",
-    title: "Computer Basics",
-    description: "Hardware, software, programming basics, and digital literacy",
-    icon: "computer",
-    color: "#7C3AED",
-    gradientColors: ["#7C3AED", "#8B5CF6"],
-    lessons: [
-      { id: "pc1", title: "Computer Hardware", duration: "15 mins", completed: true, type: "video" },
-      { id: "pc2", title: "Software Basics", duration: "20 mins", completed: false, type: "note" },
-      { id: "pc3", title: "Computer Quiz", duration: "10 mins", completed: false, type: "quiz" },
-    ]
-  }
-];
-
-const DEFAULT_USER = {
-  id: "1",
-  name: "Ahmed Khan",
-  email: "student@example.com",
-  avatar: "https://ui-avatars.com/api/?background=7C5CFF&color=fff&name=Ahmed+Khan&size=128",
-};
-
-// ======================== COMPONENTS ========================
-
-const QuickActionButton: React.FC<{
-  icon: React.ReactNode;
-  label: string;
-  color: string;
-  badge?: string;
-  onPress: () => void;
-  index?: number;
-}> = ({ icon, label, color, badge, onPress, index = 0 }) => {
-  const scale = useSharedValue(1);
-
-  const animStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-
-  return (
-    <Animated.View entering={FadeInDown.delay(index * 80).springify()} style={{ alignItems: 'center', width: (width - 60) / 3 }}>
-      <TouchableOpacity
-        onPressIn={() => { scale.value = withSpring(0.88, { damping: 12, stiffness: 180 }); }}
-        onPressOut={() => { scale.value = withSpring(1, { damping: 12, stiffness: 180 }); }}
-        onPress={onPress}
-        activeOpacity={1}
-        delayPressIn={0}
-        style={{ alignItems: 'center' }}
-      >
-        <Animated.View style={animStyle}>
-          <View style={[styles.quickActionIcon, { backgroundColor: color }]}>
-            {icon}
-            {badge && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{badge}</Text>
-              </View>
-            )}
-          </View>
-          <Text style={styles.quickActionLabel}>{label}</Text>
-        </Animated.View>
-      </TouchableOpacity>
-    </Animated.View>
-  );
-};
-
-const CourseCard: React.FC<{
-  subject: any;
-  onPress: () => void;
-  index?: number;
-}> = ({ subject, onPress, index = 0 }) => {
-  const scale = useSharedValue(1);
-
-  const animStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-
-  const lessons = subject?.lessons || [];
-  const completedCount = lessons.filter((l: any) => l.completed === true).length;
-  const totalLessonsCount = lessons.length;
-  const progress = totalLessonsCount > 0 ? (completedCount / totalLessonsCount) * 100 : 0;
-
-  const renderIcon = () => {
-    const iconProps = { size: 26, color: 'white' };
-    switch (subject?.icon) {
-      case 'science': return <ScienceIcon {...iconProps} />;
-      case 'math': return <MathIcon {...iconProps} />;
-      case 'chemistry': return <ChemistryIcon {...iconProps} />;
-      case 'physics': return <PhysicsIcon {...iconProps} />;
-      case 'computer': return <ComputerIcon {...iconProps} />;
-      default: return <ScienceIcon {...iconProps} />;
-    }
+  const handleDiagramClick = (diagram: ScienceDiagram) => {
+    setSelectedDiagram(diagram);
   };
 
-  const getProgressColor = () => {
-    if (progress >= 100) return '#10B981';
-    if (progress >= 50) return '#F59E0B';
-    return subject?.color || '#7C5CFF';
+  const handleConsultFaculty = (faculty: FacultyMember) => {
+    const url = `https://wa.me/923018183624?text=${encodeURIComponent(faculty.whatsappMsg)}`;
+    Linking.openURL(url).catch(() => {});
   };
 
-  return (
-    <Animated.View
-      entering={SlideInLeft.delay(index * 60).springify().damping(14)}
-      style={{ marginBottom: 14 }}
-    >
-      <TouchableOpacity
-        onPressIn={() => { scale.value = withSpring(0.97, { damping: 14, stiffness: 200 }); }}
-        onPressOut={() => { scale.value = withSpring(1, { damping: 14, stiffness: 200 }); }}
-        onPress={onPress}
-        activeOpacity={1}
-        delayPressIn={0}
-      >
-        <Animated.View style={[styles.courseCard, animStyle]}>
-          <View style={[styles.courseIconContainer, { backgroundColor: subject?.color || '#7C5CFF' }]}>
-            {renderIcon()}
-          </View>
-
-          <View style={styles.courseContent}>
-            <View style={styles.courseHeader}>
-              <Text style={styles.courseTitle} numberOfLines={1}>
-                {subject?.title || 'Course'}
-              </Text>
-              {progress === 100 && (
-                <View style={styles.completedBadge}>
-                  <StarIcon size={12} color="#F59E0B" />
-                  <Text style={styles.completedText}>Done!</Text>
-                </View>
-              )}
-            </View>
-            <Text style={styles.courseDescription} numberOfLines={1}>
-              {subject?.description || 'No description'}
-            </Text>
-            <View style={styles.progressContainer}>
-              <View style={styles.progressBar}>
-                <View style={[styles.progressFill, {
-                  width: `${progress}%`,
-                  backgroundColor: getProgressColor()
-                }]} />
-              </View>
-              <Text style={styles.progressText}>
-                {completedCount}/{totalLessonsCount} lessons
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.arrowContainer}>
-            <ArrowRightIcon size={20} color="#6B7280" />
-          </View>
-        </Animated.View>
-      </TouchableOpacity>
-    </Animated.View>
-  );
-};
-
-// Main HomeScreen Component
-export const HomeScreen: React.FC<HomeProps> = ({
-  onNavigateToTab,
-  onSelectSubject,
-  user,
-}) => {
-  const [refreshing, setRefreshing] = useState(false);
-
-  // Reanimated scroll value
-  const scrollY = useSharedValue(0);
-  const scrollHandler = useAnimatedScrollHandler(e => {
-    scrollY.value = e.contentOffset.y;
-  });
-
-  // Header parallax opacity
-  const headerAnimStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, [0, 80], [1, 0.92], Extrapolation.CLAMP),
-  }));
-
-  // Greeting slide-in
-  const greetingAnimStyle = useAnimatedStyle(() => ({
-    opacity: withTiming(1, { duration: 600 }),
-    transform: [{ translateY: withSpring(0, { damping: 14, stiffness: 120 }) }],
-  }));
-
-  // Calculate stats
-  const totalLessons = SUBJECTS.reduce((acc, sub) => acc + (sub?.lessons?.length || 0), 0);
-  const completedLessons = SUBJECTS.reduce((acc, sub) => {
-    const lessons = sub?.lessons || [];
-    return acc + lessons.filter((l: any) => l.completed === true).length;
-  }, 0);
-  const overallProgress = totalLessons > 0 ? (completedLessons / totalLessons) * 100 : 0;
-
-  // Find next incomplete lesson
-  let nextCourse: any = null;
-  let nextLesson: any = null;
-  for (const sub of SUBJECTS) {
-    const incomplete = (sub?.lessons || []).find((l: any) => !l.completed);
-    if (incomplete) { nextCourse = sub; nextLesson = incomplete; break; }
-  }
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await new Promise<void>(resolve => setTimeout(resolve, 1500));
-    setRefreshing(false);
-  }, []);
-
-  const handleShareProgress = async () => {
-    try {
-      await Share.share({
-        message: `📚 I've completed ${completedLessons} out of ${totalLessons} lessons on Dreams Academy! Join me in learning! 🎓`,
-      });
-    } catch (error) { console.error(error); }
-  };
-
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return '☀️ Good Morning';
-    if (hour < 17) return '🌤️ Good Afternoon';
-    return '🌙 Good Evening';
-  };
+  const userName =
+    user?.user_metadata?.full_name ||
+    user?.user_metadata?.dva_name ||
+    (user?.email ? user.email.split("@")[0] : "Student");
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <Animated.View style={[styles.header, headerAnimStyle]}>
-        <Animated.View entering={FadeInDown.delay(50).duration(500)}>
-          <View style={styles.headerTop}>
-            <View style={styles.headerLeft}>
-              <Animated.Text style={[styles.greeting, greetingAnimStyle]}>
-                {getGreeting()} 👋
-              </Animated.Text>
-              <Text style={styles.studentName}>
-                {user?.user_metadata?.full_name || user?.email?.split('@')[0] || DEFAULT_USER.name}
-              </Text>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {/* Top Header Bar */}
+        <View style={styles.topHeader}>
+          <View style={styles.logoRow}>
+            <Image
+              source={require("../../assets/logo-yellow.png")}
+              style={styles.logoHeaderImg}
+              resizeMode="cover"
+            />
+            <View style={styles.headerTitleWrap}>
+              <Text style={styles.headerMainTitle}>DREAMS</Text>
+              <Text style={styles.headerSubTitle}>Virtual Academy</Text>
             </View>
+          </View>
+
+          <View style={styles.headerRightActions}>
             <TouchableOpacity
-              onPress={() => onNavigateToTab(4)}
-              style={styles.avatarButton}
-              delayPressIn={0}
+              style={styles.whatsappNavBtn}
+              onPress={() => Linking.openURL("https://wa.me/923018183624").catch(() => {})}
+              activeOpacity={0.8}
+            >
+              <WhatsAppIcon size={14} color="#FFFFFF" />
+              <Text style={styles.whatsappNavBtnText}>Help</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.profileNavBtn}
+              onPress={() => onNavigateToTab(6)}
+              activeOpacity={0.8}
             >
               <Image
-                source={{ uri: user?.user_metadata?.avatar_url || `https://ui-avatars.com/api/?background=7C5CFF&color=fff&name=${encodeURIComponent(user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'U')}&size=128` }}
-                style={styles.avatar}
+                source={require("../../assets/profile.png")}
+                style={styles.profileAvatar}
               />
-              <View style={styles.onlineDot} />
             </TouchableOpacity>
-          </View>
-        </Animated.View>
-
-        {/* Progress Card */}
-        <Animated.View entering={FadeInDown.delay(150).springify()}>
-          <View style={styles.progressCard}>
-            <View style={styles.progressCardLeft}>
-              <View style={styles.progressCircle}>
-                <Svg width="52" height="52" viewBox="0 0 36 36">
-                  <Path
-                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                    fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="3" strokeLinecap="round"
-                  />
-                  <Path
-                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                    fill="none" stroke="white" strokeWidth="3" strokeLinecap="round"
-                    strokeDasharray={`${overallProgress}, 100`}
-                  />
-                </Svg>
-                <View style={styles.progressCircleText}>
-                  <Text style={styles.progressPercentage}>{Math.round(overallProgress)}%</Text>
-                </View>
-              </View>
-              <View style={styles.progressInfo}>
-                <Text style={styles.progressLabel}>Overall Progress</Text>
-                <Text style={styles.progressDetail}>{completedLessons} of {totalLessons} lessons</Text>
-              </View>
-            </View>
-            <TouchableOpacity onPress={handleShareProgress} style={styles.shareButton} delayPressIn={0}>
-              <Text style={styles.shareButtonText}>Share 🎉</Text>
-            </TouchableOpacity>
-          </View>
-        </Animated.View>
-      </Animated.View>
-
-      {/* Main Scrollable Content */}
-      <Animated.ScrollView
-        showsVerticalScrollIndicator={false}
-        onScroll={scrollHandler}
-        scrollEventThrottle={16}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor="#7C5CFF"
-            colors={["#7C5CFF"]}
-            progressBackgroundColor="#1F2937"
-          />
-        }
-        contentContainerStyle={styles.scrollContent}
-        decelerationRate="normal"
-        scrollEnabled={true}
-        nestedScrollEnabled={true}
-        bounces={true}
-        overScrollMode="never"
-      >
-        {/* Quick Actions */}
-        <View style={styles.quickActionsContainer}>
-          <View style={styles.quickActionsRow}>
-            <QuickActionButton
-              icon={<PlayIcon size={28} color="white" />}
-              label="Videos"
-              color="#4F46E5"
-              badge="New"
-              onPress={() => onNavigateToTab(3)}
-              index={0}
-            />
-            <QuickActionButton
-              icon={<FileTextIcon size={28} color="white" />}
-              label="Notes"
-              color="#059669"
-              onPress={() => onNavigateToTab(2)}
-              index={1}
-            />
-            <QuickActionButton
-              icon={<QuizIcon size={28} color="white" />}
-              label="Quizzes"
-              color="#D97706"
-              onPress={() => onNavigateToTab(1)}
-              index={2}
-            />
           </View>
         </View>
 
-        {/* Continue Learning Banner */}
-        {nextLesson && nextCourse && (
-          <Animated.View entering={FadeInUp.delay(200).springify()} style={styles.continueLearningSection}>
-            <Text style={styles.sectionTitle}>📚 Continue Learning</Text>
-            <TouchableOpacity
-              onPress={() => onSelectSubject(nextCourse)}
-              style={[styles.continueCard, { backgroundColor: nextCourse.color }]}
-              activeOpacity={0.9}
-              delayPressIn={0}
-            >
-              <View style={styles.continueCardContent}>
-                <View style={styles.continueIconContainer}>
-                  {nextLesson.type === "video" ? (
-                    <PlayIcon size={24} color="white" />
-                  ) : nextLesson.type === "note" ? (
-                    <FileTextIcon size={24} color="white" />
-                  ) : (
-                    <QuizIcon size={24} color="white" />
-                  )}
-                </View>
-                <View style={styles.continueTextContainer}>
-                  <Text style={styles.continueLabel}>Next Up</Text>
-                  <Text style={styles.continueTitle} numberOfLines={1}>{nextLesson?.title || 'Lesson'}</Text>
-                  <Text style={styles.continueSubtitle} numberOfLines={1}>
-                    {nextCourse?.title || 'Course'} • {nextLesson?.duration || '0 min'}
-                  </Text>
-                </View>
-                <View style={styles.continueArrow}>
-                  <ArrowRightIcon size={22} color="white" />
-                </View>
-              </View>
-            </TouchableOpacity>
-          </Animated.View>
-        )}
+        {/* Welcome Greeting Strip */}
+        <View style={styles.greetingRow}>
+          <View>
+            <Text style={styles.greetingSub}>Khush Amdeed • ڀلي ڪري آيا</Text>
+            <Text style={styles.greetingTitle}>Hello, {userName} 👋</Text>
+          </View>
+          <View style={styles.verifiedStudentChip}>
+            <Text style={styles.verifiedStudentText}>Active Learner</Text>
+          </View>
+        </View>
 
-        {/* My Courses Section */}
-        <View style={styles.coursesSection}>
-          <View style={styles.sectionHeader}>
-            <View style={styles.sectionTitleContainer}>
-              <TrophyIcon size={20} color="#F59E0B" />
-              <Text style={styles.sectionTitle}>My Courses</Text>
-            </View>
-            <TouchableOpacity onPress={() => onNavigateToTab(1)} delayPressIn={0}>
-              <Text style={styles.viewAllButton}>View All →</Text>
-            </TouchableOpacity>
+        {/* Hero Card */}
+        <View style={styles.heroCard}>
+          <View style={styles.heroBadgeRow}>
+            <SparklesIcon size={13} color="#F59E0B" />
+            <Text style={styles.heroBadgeText}>Sindh's Premier Science Academy</Text>
           </View>
 
-          {SUBJECTS.map((subject, i) => (
-            <CourseCard
-              key={subject.id}
-              subject={subject}
-              onPress={() => onSelectSubject(subject)}
-              index={i}
-            />
+          <Text style={styles.heroTitle}>
+            Dreams Virtual <Text style={{ color: Colors.accent }}>Academy</Text>
+          </Text>
+
+          <Text style={styles.heroSindhiTitle}>
+            سنڌي شاگردن لاءِ سائنس، فزڪس ۽ نوڪرين جي ٽيسٽن جي تياري
+          </Text>
+
+          <Text style={styles.heroSubtitle}>
+            Master STBB Science, Physics, Chemistry & Math in simple Sindhi. Prepare for Sindh Board & STS/JST screening tests with top educators.
+          </Text>
+
+          {/* Hero CTAs */}
+          <View style={styles.heroCtaGrid}>
+            <TouchableOpacity
+              style={styles.primaryHeroCta}
+              onPress={() => onNavigateToTab(1)}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.primaryHeroCtaText}>Explore Batches (داخلا وٺو)</Text>
+              <ArrowRightIcon size={14} color="#FFFFFF" />
+            </TouchableOpacity>
+
+            <View style={styles.secondaryCtaRow}>
+              <TouchableOpacity
+                style={styles.secondaryHeroCta}
+                onPress={() => onNavigateToTab(2)}
+                activeOpacity={0.8}
+              >
+                <TestsIcon size={15} color={Colors.accent} />
+                <Text style={styles.secondaryHeroCtaText}>Mock Tests</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.secondaryHeroCta}
+                onPress={() => onNavigateToTab(3)}
+                activeOpacity={0.8}
+              >
+                <NotesIcon size={15} color={Colors.accent} />
+                <Text style={styles.secondaryHeroCtaText}>STBB Notes</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+
+        {/* Sindh Districts Strip */}
+        <View style={styles.districtStrip}>
+          <View style={styles.districtBadge}>
+            <GraduationCapIcon size={14} color={Colors.accent} />
+            <Text style={styles.districtBadgeText}>Sindh-wide:</Text>
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.districtScroll}
+          >
+            {[
+              "Sukkur",
+              "Larkana",
+              "Hyderabad",
+              "Khairpur",
+              "Nawabshah",
+              "Dadu",
+              "Mirpurkhas",
+              "Karachi",
+              "Ghotki",
+              "Shikarpur",
+            ].map((d, i) => (
+              <View key={i} style={styles.districtItem}>
+                <Text style={styles.districtName}>{d}</Text>
+                {i < 9 && <Text style={styles.districtDot}>•</Text>}
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Modern Search Bar */}
+        <View style={styles.searchContainer}>
+          <SearchIcon size={17} color={Colors.textLight} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search STBB Notes, STS MCQs, Physics Videos..."
+            placeholderTextColor={Colors.textMuted}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+        </View>
+
+        {/* Quick Subject Category Grid */}
+        <View style={styles.categoryGrid}>
+          {[
+            { title: "Physics", sindhi: "فزڪس", tab: 4, icon: "⚡", bg: "#EFF6FF", border: "#DBEAFE" },
+            { title: "Biology", sindhi: "حياتيات", tab: 4, icon: "🧬", bg: "#F0FDF4", border: "#DCFCE7" },
+            { title: "Chemistry", sindhi: "ڪيمسٽري", tab: 1, icon: "⚗️", bg: "#FAF5FF", border: "#F3E8FF" },
+            { title: "Mathematics", sindhi: "رياضي", tab: 1, icon: "📐", bg: "#FFFBEB", border: "#FEF3C7" },
+          ].map((item, idx) => (
+            <TouchableOpacity
+              key={idx}
+              style={[styles.categoryTile, { backgroundColor: item.bg, borderColor: item.border }]}
+              onPress={() => onNavigateToTab(item.tab)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.categoryTileEmoji}>{item.icon}</Text>
+              <Text style={styles.categoryTileTitle}>{item.title}</Text>
+              <Text style={styles.categoryTileSindhi}>{item.sindhi}</Text>
+            </TouchableOpacity>
           ))}
         </View>
 
-        {/* Motivational Banner */}
-        <Animated.View entering={FadeInUp.delay(300).springify()} style={styles.motivationalSection}>
-          <View style={styles.motivationalCard}>
-            <Text style={styles.motivationalEmoji}>🎯</Text>
-            <Text style={styles.motivationalTitle}>Ready to Learn Something New?</Text>
-            <Text style={styles.motivationalText}>
-              Complete your lessons, earn certificates, and become a star student! ⭐
-            </Text>
-            <TouchableOpacity
-              onPress={() => onNavigateToTab(1)}
-              style={styles.startLearningButton}
-              activeOpacity={0.8}
-              delayPressIn={0}
-            >
-              <Text style={styles.startLearningText}>Start a Quiz →</Text>
-            </TouchableOpacity>
+        {/* Featured Courses Carousel */}
+        <View style={styles.sectionHeaderRow}>
+          <View>
+            <Text style={styles.sectionTitle}>Featured Live Batches</Text>
+            <Text style={styles.sectionSubtitle}>نئين بيچز ۾ داخلا وٺو (آنلائن ڪلاسن جو شيڊيول)</Text>
           </View>
-        </Animated.View>
+          <TouchableOpacity onPress={() => onNavigateToTab(1)}>
+            <Text style={styles.seeAllText}>View All</Text>
+          </TouchableOpacity>
+        </View>
 
-        {/* Bottom Padding */}
-        <View style={{ height: 40 }} />
-      </Animated.ScrollView>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.coursesScroll}
+        >
+          {COURSES_DATA.map((course) => (
+            <TouchableOpacity
+              key={course.id}
+              style={styles.courseCard}
+              onPress={() => onNavigateToTab(1)}
+              activeOpacity={0.9}
+            >
+              <View style={styles.courseThumbContainer}>
+                {course.thumbnailUrl ? (
+                  <Image
+                    source={{ uri: course.thumbnailUrl }}
+                    style={styles.courseThumb}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <Image
+                    source={course.instructorPhoto}
+                    style={styles.courseThumb}
+                    resizeMode="cover"
+                  />
+                )}
+                <View style={styles.courseBadge}>
+                  <Text style={styles.courseBadgeText}>{course.badge || course.category}</Text>
+                </View>
+                <View style={styles.courseFeePill}>
+                  <Text style={styles.courseFeeText}>{course.fee}</Text>
+                </View>
+              </View>
+
+              <View style={styles.courseInfo}>
+                <View style={styles.courseRatingRow}>
+                  <StarIcon size={12} color="#F59E0B" />
+                  <Text style={styles.courseRatingText}>{course.rating || 4.9}</Text>
+                  <Text style={styles.courseStudentsText}>• {course.studentsCount || "1k+ Enrolled"}</Text>
+                </View>
+
+                <Text style={styles.courseTitle} numberOfLines={2}>
+                  {course.title}
+                </Text>
+                <Text style={styles.courseSindhi} numberOfLines={1}>
+                  {course.sindhiTitle}
+                </Text>
+
+                <View style={styles.courseInstructorRow}>
+                  <Image source={course.instructorPhoto} style={styles.instructorMiniAvatar} />
+                  <Text style={styles.instructorMiniName} numberOfLines={1}>
+                    {course.instructorName}
+                  </Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {/* Key Statistics Bar */}
+        <View style={styles.statsCard}>
+          <View style={styles.statBox}>
+            <UsersGroupIcon size={18} color={Colors.accent} />
+            <Text style={styles.statNumber}>15,000+</Text>
+            <Text style={styles.statLabel}>Sindhi Students</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statBox}>
+            <GraduationCapIcon size={18} color="#10B981" />
+            <Text style={styles.statNumber}>85+</Text>
+            <Text style={styles.statLabel}>Video Lectures</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statBox}>
+            <SparklesIcon size={18} color="#F59E0B" />
+            <Text style={styles.statNumber}>4 Mentors</Text>
+            <Text style={styles.statLabel}>Expert Faculty</Text>
+          </View>
+        </View>
+
+        {/* Anatomical Diagrams Section */}
+        <View style={styles.sectionHeaderRow}>
+          <View>
+            <Text style={styles.sectionTitle}>Science Anatomical Diagrams</Text>
+            <Text style={styles.sectionSubtitle}>انساني جسم جي اهم عضون جا تفصيلي خاڪا</Text>
+          </View>
+        </View>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.diagramsScroll}
+        >
+          {SCIENCE_DIAGRAMS.map((diagram) => (
+            <TouchableOpacity
+              key={diagram.id}
+              style={styles.diagramCard}
+              onPress={() => handleDiagramClick(diagram)}
+              activeOpacity={0.88}
+            >
+              <Image source={diagram.image} style={styles.diagramImage} resizeMode="cover" />
+              <View style={styles.diagramInfo}>
+                <View style={styles.diagramCategoryBadge}>
+                  <Text style={styles.diagramCategoryText}>{diagram.category}</Text>
+                </View>
+                <Text style={styles.diagramTitle} numberOfLines={1}>
+                  {diagram.title}
+                </Text>
+                <Text style={styles.diagramSindhi} numberOfLines={1}>
+                  {diagram.sindhiTitle}
+                </Text>
+                <Text style={styles.diagramTapHint}>Tap to view anatomy labels 🔍</Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {/* Dedicated Faculty Mentors */}
+        <View style={styles.sectionHeaderRow}>
+          <View>
+            <Text style={styles.sectionTitle}>Meet Our Dedicated Mentors</Text>
+            <Text style={styles.sectionSubtitle}>ڊريمز اڪيڊمي جا ماهر استاد ۽ رهبر</Text>
+          </View>
+        </View>
+
+        <View style={styles.facultyGrid}>
+          {FACULTY_MEMBERS.map((mentor) => (
+            <View key={mentor.id} style={styles.facultyCard}>
+              <View style={styles.facultyTopRow}>
+                <Image source={mentor.photo} style={styles.facultyPhoto} />
+                <View style={{ flex: 1 }}>
+                  <View style={styles.roleBadgeContainer}>
+                    <Text style={styles.roleBadgeText}>{mentor.roleBadge}</Text>
+                  </View>
+                  <Text style={styles.facultyName}>{mentor.name}</Text>
+                  <Text style={styles.facultySindhiName}>{mentor.sindhiName}</Text>
+                  <Text style={styles.facultyTitle}>{mentor.title}</Text>
+                  <Text style={styles.facultyEdu}>{mentor.education}</Text>
+                </View>
+              </View>
+
+              <Text style={styles.facultyDesc}>{mentor.description}</Text>
+
+              <View style={styles.facultyTagsRow}>
+                {mentor.subjects.map((sub, idx) => (
+                  <View key={idx} style={styles.facultyTag}>
+                    <Text style={styles.facultyTagText}>{sub}</Text>
+                  </View>
+                ))}
+              </View>
+
+              <TouchableOpacity
+                style={styles.consultBtn}
+                onPress={() => handleConsultFaculty(mentor)}
+                activeOpacity={0.85}
+              >
+                <WhatsAppIcon size={14} color="#FFFFFF" />
+                <Text style={styles.consultBtnText}>Ask Guidance on WhatsApp</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+        </View>
+
+        {/* Student Testimonials */}
+        <View style={styles.sectionHeaderRow}>
+          <View>
+            <Text style={styles.sectionTitle}>Student Success Stories</Text>
+            <Text style={styles.sectionSubtitle}>شاگردن جا تاثرات ۽ ڪاميابي جو راز</Text>
+          </View>
+        </View>
+
+        <View style={styles.testimonialsGrid}>
+          {TESTIMONIALS.map((t, idx) => (
+            <View key={idx} style={styles.testimonialCard}>
+              <View style={styles.testimonialStarsRow}>
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <StarIcon key={s} size={12} color="#F59E0B" />
+                ))}
+              </View>
+              <Text style={styles.testimonialText}>"{t.text}"</Text>
+              <View style={styles.testimonialUserRow}>
+                {t.avatar ? (
+                  <Image source={{ uri: t.avatar }} style={styles.testimonialAvatar} />
+                ) : (
+                  <View style={styles.testimonialAvatarPlaceholder}>
+                    <Text style={{ fontSize: 11, fontWeight: "700", color: Colors.accent }}>
+                      {t.name[0]}
+                    </Text>
+                  </View>
+                )}
+                <View>
+                  <Text style={styles.testimonialName}>{t.name}</Text>
+                  <Text style={styles.testimonialRole}>{t.role}</Text>
+                </View>
+              </View>
+            </View>
+          ))}
+        </View>
+
+        {/* Spacing for floating bottom bar */}
+        <View style={{ height: 110 }} />
+      </ScrollView>
+
+      {/* Anatomical Diagram Modal */}
+      <Modal
+        visible={!!selectedDiagram}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedDiagram(null)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.diagramModalContent}>
+            <View style={styles.diagramModalHeader}>
+              <View style={{ flex: 1, paddingRight: 8 }}>
+                <Text style={styles.diagramModalTitle}>{selectedDiagram?.title}</Text>
+                <Text style={styles.diagramModalSindhi}>{selectedDiagram?.sindhiTitle}</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setSelectedDiagram(null)}
+                style={styles.diagramModalClose}
+              >
+                <Text style={styles.diagramModalCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {selectedDiagram?.image && (
+                <Image
+                  source={selectedDiagram.image}
+                  style={styles.modalDiagramImage}
+                  resizeMode="contain"
+                />
+              )}
+
+              <Text style={styles.diagramDescription}>{selectedDiagram?.description}</Text>
+
+              <Text style={styles.labelsHeading}>Anatomical Labels (اہم حصا):</Text>
+              <View style={styles.labelsGrid}>
+                {selectedDiagram?.labels.map((label, i) => (
+                  <View key={i} style={styles.labelChip}>
+                    <CheckIcon size={12} color="#10B981" />
+                    <Text style={styles.labelChipText}>{label}</Text>
+                  </View>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
 
-// ======================== STYLES ========================
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
-  },
-  header: {
-    backgroundColor: '#7C5CFF',
-    paddingTop: Platform.OS === 'ios' ? 44 : 18,
-    paddingBottom: 16,
-    paddingHorizontal: 20,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    shadowColor: '#7C5CFF',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  headerLeft: {
-    flex: 1,
-  },
-  greeting: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 11,
-    fontWeight: '600',
-    marginBottom: 2,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  studentName: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-    letterSpacing: -0.3,
-  },
-  avatarButton: {
-    position: 'relative',
-  },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    borderWidth: 3,
-    borderColor: 'rgba(255,255,255,0.3)',
-  },
-  onlineDot: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#10B981',
-    borderWidth: 2,
-    borderColor: 'white',
-  },
-  progressCard: {
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderRadius: 14,
-    padding: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
-  },
-  progressCardLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  progressCircle: {
-    position: 'relative',
-    marginRight: 10,
-  },
-  progressCircleText: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  progressPercentage: {
-    color: 'white',
-    fontSize: 11,
-    fontWeight: 'bold',
-  },
-  progressInfo: {
-    flex: 1,
-  },
-  progressLabel: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 11,
-    fontWeight: '600',
-    marginBottom: 1,
-  },
-  progressDetail: {
-    color: 'rgba(255,255,255,0.6)',
-    fontSize: 10,
-  },
-  shareButton: {
-    backgroundColor: 'white',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginLeft: 12,
-  },
-  shareButtonText: {
-    color: '#7C5CFF',
-    fontSize: 12,
-    fontWeight: 'bold',
+    backgroundColor: Colors.background,
   },
   scrollContent: {
-    paddingBottom: 20,
+    paddingHorizontal: 14,
+    paddingTop: 8,
   },
-  quickActionsContainer: {
-    paddingHorizontal: 15,
-    paddingTop: 20,
-    paddingBottom: 10,
+  topHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
   },
-  quickActionsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    backgroundColor: '#1F2937',
-    borderRadius: 20,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+  logoRow: {
+    flexDirection: "row",
+    alignItems: "center",
   },
-  quickActionIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-    position: 'relative',
-  },
-  quickActionLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#9CA3AF',
-    textAlign: 'center',
-  },
-  badge: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    backgroundColor: '#EF4444',
+  logoHeaderImg: {
+    width: 36,
+    height: 36,
     borderRadius: 8,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  badgeText: {
-    color: 'white',
-    fontSize: 8,
-    fontWeight: 'bold',
-  },
-  continueLearningSection: {
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 20,
-  },
-  continueCard: {
-    borderRadius: 20,
-    shadowColor: '#7C5CFF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 6,
-    overflow: 'hidden',
-  },
-  continueCardContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: 'rgba(0,0,0,0.1)',
-  },
-  continueIconContainer: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    width: 52,
-    height: 52,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
-  },
-  continueTextContainer: {
-    flex: 1,
-  },
-  continueLabel: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 11,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  continueTitle: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 2,
-  },
-  continueSubtitle: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 12,
-  },
-  continueArrow: {
-    marginLeft: 12,
-  },
-  coursesSection: {
-    paddingHorizontal: 20,
-    paddingTop: 10,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  sectionTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginLeft: 8,
-    marginBottom : 10
-  },
-  viewAllButton: {
-    color: '#7C5CFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  courseCard: {
-    backgroundColor: '#1F2937',
-    borderRadius: 20,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-  },
-  courseIconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  courseContent: {
-    flex: 1,
-  },
-  courseHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  courseTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    flex: 1,
     marginRight: 8,
   },
-  completedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(245,158,11,0.1)',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
+  headerTitleWrap: {
+    justifyContent: "center",
   },
-  completedText: {
-    color: '#F59E0B',
-    fontSize: 10,
-    fontWeight: '600',
-    marginLeft: 4,
+  headerMainTitle: {
+    fontSize: 14,
+    fontWeight: "900",
+    color: Colors.textDark,
+    letterSpacing: 0.5,
+    lineHeight: 16,
   },
-  courseDescription: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    marginBottom: 8,
+  headerSubTitle: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: Colors.accent,
+    letterSpacing: 0.2,
   },
-  progressContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  headerRightActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
-  progressBar: {
-    flex: 1,
-    height: 5,
-    backgroundColor: '#374151',
-    borderRadius: 3,
-    overflow: 'hidden',
-    marginRight: 10,
+  whatsappNavBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#10B981",
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 16,
+    gap: 4,
   },
-  progressFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  progressText: {
+  whatsappNavBtnText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
     fontSize: 11,
-    color: '#6B7280',
-    fontWeight: '600',
   },
-  arrowContainer: {
-    marginLeft: 12,
-    opacity: 0.5,
+  profileNavBtn: {
+    borderRadius: 17,
+    borderWidth: 1.5,
+    borderColor: Colors.accent,
   },
-  motivationalSection: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
+  profileAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
   },
-  motivationalCard: {
-    backgroundColor: '#1E293B',
-    borderRadius: 24,
-    padding: 24,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(124,92,255,0.2)',
-    shadowColor: '#7C5CFF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
-    elevation: 4,
-  },
-  motivationalEmoji: {
-    fontSize: 40,
+  greetingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: 12,
   },
-  motivationalTitle: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    textAlign: 'center',
+  greetingSub: {
+    fontSize: 11,
+    color: Colors.textLight,
   },
-  motivationalText: {
-    color: '#94A3B8',
+  greetingTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: Colors.textDark,
+    letterSpacing: -0.2,
+  },
+  verifiedStudentChip: {
+    backgroundColor: Colors.accentLight,
+    paddingVertical: 4,
+    paddingHorizontal: 9,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(124, 92, 255, 0.2)",
+  },
+  verifiedStudentText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: Colors.accent,
+  },
+  heroCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
+    marginBottom: 14,
+  },
+  heroBadgeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFBEB",
+    alignSelf: "flex-start",
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "#FEF3C7",
+    gap: 5,
+  },
+  heroBadgeText: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: "#B45309",
+    letterSpacing: 0.1,
+  },
+  heroTitle: {
+    fontSize: 21,
+    fontWeight: "900",
+    color: Colors.textDark,
+    letterSpacing: -0.3,
+    marginBottom: 2,
+  },
+  heroSindhiTitle: {
     fontSize: 13,
-    textAlign: 'center',
-    marginBottom: 20,
+    fontWeight: "700",
+    color: Colors.accent,
+    marginBottom: 8,
     lineHeight: 20,
   },
-  startLearningButton: {
-    backgroundColor: '#F59E0B',
-    paddingHorizontal: 28,
-    paddingVertical: 12,
-    borderRadius: 25,
-    shadowColor: '#F59E0B',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
+  heroSubtitle: {
+    fontSize: 12,
+    color: Colors.textLight,
+    lineHeight: 17,
+    marginBottom: 14,
   },
-  startLearningText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: 'bold',
+  heroCtaGrid: {
+    gap: 8,
+  },
+  primaryHeroCta: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.accent,
+    paddingVertical: 11,
+    borderRadius: 12,
+    gap: 6,
+    elevation: 2,
+  },
+  primaryHeroCtaText: {
+    color: "#FFFFFF",
+    fontWeight: "800",
+    fontSize: 13,
+  },
+  secondaryCtaRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  secondaryHeroCta: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.primaryLight,
+    borderWidth: 1,
+    borderColor: "rgba(244, 196, 127, 0.5)",
+    paddingVertical: 9,
+    borderRadius: 10,
+    gap: 5,
+  },
+  secondaryHeroCtaText: {
+    color: Colors.textDark,
+    fontWeight: "700",
+    fontSize: 11,
+  },
+  districtStrip: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+  },
+  districtBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingRight: 6,
+    borderRightWidth: 1,
+    borderRightColor: "#E2E8F0",
+    marginRight: 6,
+  },
+  districtBadgeText: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: Colors.accent,
+  },
+  districtScroll: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  districtItem: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  districtName: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: Colors.textLight,
+  },
+  districtDot: {
+    marginHorizontal: 5,
+    color: Colors.accent,
+    fontSize: 9,
+  },
+  searchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: 8,
+    fontSize: 12,
+    color: Colors.textDark,
+    paddingVertical: 2,
+  },
+  categoryGrid: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 16,
+  },
+  categoryTile: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  categoryTileEmoji: {
+    fontSize: 18,
+    marginBottom: 3,
+  },
+  categoryTileTitle: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: Colors.textDark,
+  },
+  categoryTileSindhi: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: Colors.textLight,
+    marginTop: 1,
+  },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+    marginBottom: 10,
+  },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: Colors.textDark,
+    letterSpacing: -0.2,
+  },
+  sectionSubtitle: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: Colors.accent,
+    marginTop: 1,
+  },
+  seeAllText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: Colors.accent,
+  },
+  coursesScroll: {
+    gap: 12,
+    marginBottom: 18,
+    paddingRight: 10,
+  },
+  courseCard: {
+    width: width * 0.68,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  courseThumbContainer: {
+    width: "100%",
+    height: 115,
+    backgroundColor: "#F1F5F9",
+    position: "relative",
+  },
+  courseThumb: {
+    width: "100%",
+    height: "100%",
+  },
+  courseBadge: {
+    position: "absolute",
+    top: 8,
+    left: 8,
+    backgroundColor: "rgba(30, 26, 41, 0.85)",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  courseBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 9,
+    fontWeight: "800",
+  },
+  courseFeePill: {
+    position: "absolute",
+    bottom: 8,
+    right: 8,
+    backgroundColor: Colors.accent,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  courseFeeText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "800",
+  },
+  courseInfo: {
+    padding: 10,
+  },
+  courseRatingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    marginBottom: 4,
+  },
+  courseRatingText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: Colors.textDark,
+  },
+  courseStudentsText: {
+    fontSize: 10,
+    color: Colors.textLight,
+  },
+  courseTitle: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: Colors.textDark,
+    lineHeight: 16,
+    marginBottom: 2,
+  },
+  courseSindhi: {
+    fontSize: 10,
+    color: Colors.accent,
+    fontWeight: "600",
+    marginBottom: 8,
+  },
+  courseInstructorRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: "#F1F5F9",
+  },
+  instructorMiniAvatar: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+  },
+  instructorMiniName: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: Colors.textLight,
+    flex: 1,
+  },
+  statsCard: {
+    flexDirection: "row",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    marginBottom: 18,
+    alignItems: "center",
+  },
+  statBox: {
+    flex: 1,
+    alignItems: "center",
+  },
+  statDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: "#F1F5F9",
+  },
+  statNumber: {
+    fontSize: 13,
+    fontWeight: "900",
+    color: Colors.textDark,
+    marginTop: 3,
+  },
+  statLabel: {
+    fontSize: 9,
+    color: Colors.textLight,
+    marginTop: 1,
+  },
+  diagramsScroll: {
+    gap: 12,
+    marginBottom: 20,
+    paddingRight: 10,
+  },
+  diagramCard: {
+    width: width * 0.65,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  diagramImage: {
+    width: "100%",
+    height: 120,
+    backgroundColor: "#F8FAFC",
+  },
+  diagramInfo: {
+    padding: 10,
+  },
+  diagramCategoryBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: Colors.accentLight,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginBottom: 4,
+  },
+  diagramCategoryText: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: Colors.accent,
+  },
+  diagramTitle: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: Colors.textDark,
+  },
+  diagramSindhi: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: Colors.accent,
+    marginTop: 1,
+  },
+  diagramTapHint: {
+    fontSize: 9,
+    color: Colors.textMuted,
+    marginTop: 5,
+  },
+  facultyGrid: {
+    gap: 10,
+    marginBottom: 20,
+  },
+  facultyCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    elevation: 1,
+  },
+  facultyTopRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 8,
+  },
+  facultyPhoto: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 2,
+    borderColor: Colors.accent,
+  },
+  roleBadgeContainer: {
+    alignSelf: "flex-start",
+    backgroundColor: "#FEF3C7",
+    paddingVertical: 2,
+    paddingHorizontal: 7,
+    borderRadius: 6,
+    marginBottom: 2,
+  },
+  roleBadgeText: {
+    fontSize: 8,
+    fontWeight: "800",
+    color: "#B45309",
+  },
+  facultyName: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: Colors.textDark,
+  },
+  facultySindhiName: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: Colors.accent,
+  },
+  facultyTitle: {
+    fontSize: 10,
+    color: Colors.textLight,
+  },
+  facultyEdu: {
+    fontSize: 9,
+    color: "#94A3B8",
+  },
+  facultyDesc: {
+    fontSize: 11,
+    color: Colors.textLight,
+    lineHeight: 15,
+    marginBottom: 8,
+  },
+  facultyTagsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 5,
+    marginBottom: 10,
+  },
+  facultyTag: {
+    backgroundColor: "#F1F5F9",
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  facultyTagText: {
+    fontSize: 9,
+    color: Colors.textDark,
+    fontWeight: "600",
+  },
+  consultBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#10B981",
+    paddingVertical: 8,
+    borderRadius: 10,
+    gap: 5,
+  },
+  consultBtnText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 11,
+  },
+  testimonialsGrid: {
+    gap: 10,
+    marginBottom: 10,
+  },
+  testimonialCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+  },
+  testimonialStarsRow: {
+    flexDirection: "row",
+    gap: 2,
+    marginBottom: 6,
+  },
+  testimonialText: {
+    fontSize: 11,
+    color: Colors.textDark,
+    lineHeight: 16,
+    marginBottom: 8,
+  },
+  testimonialUserRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  testimonialAvatar: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+  },
+  testimonialAvatarPlaceholder: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: Colors.accentLight,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  testimonialName: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: Colors.textDark,
+  },
+  testimonialRole: {
+    fontSize: 9,
+    color: Colors.textLight,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.65)",
+    justifyContent: "center",
+    padding: 16,
+  },
+  diagramModalContent: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 16,
+    maxHeight: "82%",
+  },
+  diagramModalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 10,
+  },
+  diagramModalTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: Colors.textDark,
+  },
+  diagramModalSindhi: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: Colors.accent,
+  },
+  diagramModalClose: {
+    padding: 5,
+    borderRadius: 14,
+    backgroundColor: "#F1F5F9",
+  },
+  diagramModalCloseText: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: Colors.textDark,
+  },
+  modalDiagramImage: {
+    width: "100%",
+    height: 200,
+    borderRadius: 12,
+    backgroundColor: "#F8FAFC",
+    marginBottom: 10,
+  },
+  diagramDescription: {
+    fontSize: 11,
+    color: Colors.textLight,
+    lineHeight: 16,
+    marginBottom: 10,
+  },
+  labelsHeading: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: Colors.textDark,
+    marginBottom: 6,
+  },
+  labelsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 5,
+  },
+  labelChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#ECFDF5",
+    borderWidth: 1,
+    borderColor: "#A7F3D0",
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+    gap: 4,
+  },
+  labelChipText: {
+    fontSize: 10,
+    color: "#065F46",
+    fontWeight: "600",
   },
 });
 

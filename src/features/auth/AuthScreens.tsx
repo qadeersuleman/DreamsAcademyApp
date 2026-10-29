@@ -11,6 +11,7 @@ import {
   StatusBar,
   Animated,
   ActivityIndicator,
+  Image,
 } from "react-native";
 import Svg, { Path, Circle, Line } from "react-native-svg";
 import { supabase } from "../../lib/supabase";
@@ -391,11 +392,12 @@ export const LoginScreen: React.FC<{
                 { alignItems: "center", marginBottom: 32 }
               ]}
             >
-              <View className="w-20 h-20 rounded-3xl bg-accent items-center justify-center shadow-lg mb-4 border border-white/10">
-                <Svg width={40} height={40} viewBox="0 0 24 24" fill="none">
-                  <Path d="M12 3L1 9L12 15L21 10.09V17H23V9L12 3Z" fill="white" />
-                  <Path d="M6 12.5V17C6 19 8.67 20.5 12 20.5C15.33 20.5 18 19 18 17V12.5L12 15.5L6 12.5Z" fill="white" />
-                </Svg>
+              <View className="w-20 h-20 rounded-2xl overflow-hidden items-center justify-center shadow-lg mb-3 border border-white/10 bg-[#0F172A]">
+                <Image
+                  source={require("../../assets/logo-yellow.png")}
+                  style={{ width: "100%", height: "100%" }}
+                  resizeMode="cover"
+                />
               </View>
               <Text className="text-2xl font-black text-white text-center tracking-tight uppercase">
                 Dreams Academy
@@ -540,13 +542,12 @@ export const SignupScreen: React.FC<{
           <View className="px-6 pt-12 pb-8">
             {/* Animated Header */}
             <View className="items-center mb-6">
-              <View className="w-16 h-16 rounded-3xl bg-accent items-center justify-center mb-4 border border-white/10">
-                <Svg width={32} height={32} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <Path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                  <Circle cx="9" cy="7" r="4" />
-                  <Line x1="19" y1="8" x2="19" y2="14" />
-                  <Line x1="16" y1="11" x2="22" y2="11" />
-                </Svg>
+              <View className="w-16 h-16 rounded-2xl overflow-hidden items-center justify-center mb-4 border border-white/10 bg-[#0F172A]">
+                <Image
+                  source={require("../../assets/logo-yellow.png")}
+                  style={{ width: "100%", height: "100%" }}
+                  resizeMode="cover"
+                />
               </View>
               <Text className="text-2xl font-black text-white text-center uppercase tracking-tight">
                 Join the Journey

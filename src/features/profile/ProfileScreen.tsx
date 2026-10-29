@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -7,187 +7,76 @@ import {
   TouchableOpacity,
   Image,
   Switch,
-  Animated,
-  StatusBar,
+  Linking,
 } from "react-native";
-import Svg, { Path, Circle, Rect, Line, Text as SvgText, G } from "react-native-svg";
-import { MOCK_USER } from "../../data/mockData";
+import Svg, { Path, Circle } from "react-native-svg";
+import Colors from "../../theme/Colors";
+import {
+  WhatsAppIcon,
+  SparklesIcon,
+  TrophyIcon,
+  BackIcon,
+  BatchesIcon,
+  NotesIcon,
+} from "../../shared/widgets/Icons";
 
-const AnimatedRect = Animated.createAnimatedComponent(Rect);
-
-// ─── SVG Icons ───────────────────────────────────────────────────────────────
-
-const BackIcon = ({ size = 20, color = "#FFF" }) => (
+const UserIcon = ({ size = 18, color = Colors.accent }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Path d="M19 12H5M12 5l-7 7 7 7" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    <Circle cx="12" cy="7" r="4" stroke={color} strokeWidth="1.8" />
   </Svg>
 );
 
-const UserIcon = ({ size = 20, color = "#7C5CFF" }) => (
+const LogoutIcon = ({ size = 16, color = "#EF4444" }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    <Circle cx="12" cy="7" r="4" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M16 17l5-5-5-5" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M21 12H9" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
   </Svg>
 );
-
-const TrophyIcon = ({ size = 18, color = "#F59E0B" }) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Path d="M6 9H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h2M18 9h2a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-2" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    <Path d="M6 3h12v6a6 6 0 1 1-12 0V3z" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    <Path d="M12 18v3M9 21h6" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
-
-const ClockIcon = ({ size = 14, color = "#94A3B8" }) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Circle cx="12" cy="12" r="10" stroke={color} strokeWidth="2" />
-    <Path d="M12 6v6l4 2" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
-
-const StarIcon = ({ size = 14, color = "#F59E0B" }) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill={color} />
-  </Svg>
-);
-
-const CheckCircleIcon = ({ size = 18, color = "#10B981" }) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke={color} strokeWidth="2" strokeLinecap="round" />
-    <Path d="M22 4L12 14.01l-3-3" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
-
-const SparklesIcon = ({ size = 18, color = "#7C5CFF" }) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Path d="M12 3v3M12 18v3M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M3 12h3M18 12h3M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12" stroke={color} strokeWidth="2" strokeLinecap="round" />
-  </Svg>
-);
-
-const SettingsIcon = ({ size = 18, color = "#7C5CFF" }) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Circle cx="12" cy="12" r="3" stroke={color} strokeWidth="2" />
-    <Path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
-
-const LogoutIcon = ({ size = 18, color = "#EF4444" }) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    <Path d="M16 17l5-5-5-5" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    <Path d="M21 12H9" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
-
-// ─── Chart Bar Sub-component ──────────────────────────────────────────────────
-
-interface ChartBarProps {
-  percentage: number;
-  color: string;
-  xOffset: number;
-  label: string;
-  delay: number;
-}
-
-const ChartBar: React.FC<ChartBarProps> = ({ percentage, color, xOffset, label, delay }) => {
-  const animValue = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.timing(animValue, {
-      toValue: percentage,
-      duration: 1000,
-      delay,
-      useNativeDriver: false,
-    }).start();
-  }, [percentage, delay, animValue]);
-
-  const barHeight = animValue.interpolate({
-    inputRange: [0, 100],
-    outputRange: [0.1, 90],
-  });
-
-  const yOffset = animValue.interpolate({
-    inputRange: [0, 100],
-    outputRange: [110, 20],
-  });
-
-  return (
-    <G>
-      <Rect
-        x={xOffset}
-        y="20"
-        width="16"
-        height="90"
-        fill="rgba(51, 65, 85, 0.3)"
-        rx="4"
-      />
-      <AnimatedRect
-        x={xOffset}
-        y={yOffset}
-        width="16"
-        height={barHeight}
-        fill={color}
-        rx="4"
-      />
-      <SvgText
-        x={xOffset + 8}
-        y="126"
-        fill="#94A3B8"
-        fontSize="8"
-        fontWeight="bold"
-        textAnchor="middle"
-      >
-        {label}
-      </SvgText>
-    </G>
-  );
-};
-
-// ─── Main Profile Screen ─────────────────────────────────────────────────────
 
 interface ProfileProps {
   user?: any;
   onLogout: () => void;
   onBack?: () => void;
+  onNavigateToTab?: (tab: number) => void;
 }
 
-export const ProfileScreen: React.FC<ProfileProps> = ({ user, onLogout, onBack }) => {
-  const [darkMode, setDarkMode] = useState(true);
+export const ProfileScreen: React.FC<ProfileProps> = ({
+  user,
+  onLogout,
+  onBack,
+  onNavigateToTab,
+}) => {
   const [notifications, setNotifications] = useState(true);
-  const [offlineMode, setOfflineMode] = useState(false);
 
-  const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || MOCK_USER.name;
-  const displayEmail = user?.email || MOCK_USER.email;
-  const avatarUrl = user?.user_metadata?.avatar_url || `https://ui-avatars.com/api/?background=7C5CFF&color=fff&name=${encodeURIComponent(displayName)}`;
-
-  const chartData = [
-    { label: "Maths", percentage: 55, color: "#10B981" },
-    { label: "Phys", percentage: 70, color: "#3DBE7A" },
-    { label: "Chem", percentage: 40, color: "#FFB020" },
-    { label: "Comp", percentage: 85, color: "#7C5CFF" },
-  ];
+  const displayName =
+    user?.user_metadata?.full_name ||
+    user?.user_metadata?.dva_name ||
+    (user?.email ? user.email.split("@")[0] : "Student");
+  const displayEmail = user?.email || "student@dreams.com";
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
-
       {/* Header */}
       <View style={styles.header}>
-        {onBack ? (
-          <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.75}>
-            <BackIcon size={20} color="#FFFFFF" />
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.headerPlaceholder} />
-        )}
-        <View style={styles.headerCenter}>
-          <View style={styles.roleBadge}>
-            <UserIcon size={12} color="#7C5CFF" />
-            <Text style={styles.roleBadgeText}>STUDENT PROFILE</Text>
+        <View style={styles.headerTopRow}>
+          {onBack ? (
+            <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.75}>
+              <BackIcon size={18} color={Colors.textDark} />
+            </TouchableOpacity>
+          ) : (
+            <View style={{ width: 32 }} />
+          )}
+          <View style={styles.headerCenter}>
+            <View style={styles.roleBadge}>
+              <UserIcon size={11} color={Colors.accent} />
+              <Text style={styles.roleBadgeText}>STUDENT PROFILE</Text>
+            </View>
+            <Text style={styles.headerTitle}>Account & Settings</Text>
           </View>
-          <Text style={styles.headerTitle}>Account & Performance</Text>
+          <View style={{ width: 32 }} />
         </View>
-        <View style={styles.headerPlaceholder} />
       </View>
 
       <ScrollView
@@ -195,166 +84,115 @@ export const ProfileScreen: React.FC<ProfileProps> = ({ user, onLogout, onBack }
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* User Card */}
+        {/* User Profile Card */}
         <View style={styles.userCard}>
-          <View style={styles.avatarWrapper}>
-            <Image
-              source={{ uri: avatarUrl }}
-              style={styles.avatarImage}
-            />
-            <View style={styles.onlineBadge} />
-          </View>
+          <Image
+            source={require("../../assets/profile.png")}
+            style={styles.avatarImage}
+          />
           <View style={styles.userInfo}>
             <Text style={styles.userName}>{displayName}</Text>
             <Text style={styles.userEmail}>{displayEmail}</Text>
-            <View style={styles.userMetaRow}>
+            <View style={styles.metaRow}>
               <View style={styles.metaChip}>
-                <Text style={styles.metaChipText}>FSc Class 12th</Text>
+                <Text style={styles.metaChipText}>Academy Scholar 🎓</Text>
               </View>
-              <View style={[styles.metaChip, styles.metaChipGold]}>
-                <StarIcon size={10} color="#F59E0B" />
-                <Text style={[styles.metaChipText, { color: '#F59E0B', marginLeft: 3 }]}>
-                  {MOCK_USER.totalPoints} XP
-                </Text>
+              <View style={[styles.metaChip, { backgroundColor: "#ECFDF5" }]}>
+                <Text style={[styles.metaChipText, { color: "#059669" }]}>STS / Sindh Board</Text>
               </View>
             </View>
           </View>
         </View>
 
-        {/* Quick Stats Grid */}
-        <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <View style={styles.statHeader}>
-              <ClockIcon color="#7C5CFF" size={16} />
-              <Text style={styles.statLabel}>Study Volume</Text>
-            </View>
-            <Text style={styles.statValue}>6.4 hrs</Text>
-            <Text style={styles.statSub}>Revision & Videos</Text>
-          </View>
+        {/* Quick Hub Navigation Cards */}
+        {onNavigateToTab && (
+          <View style={styles.quickNavRow}>
+            <TouchableOpacity
+              style={styles.quickNavBtn}
+              onPress={() => onNavigateToTab(5)}
+              activeOpacity={0.8}
+            >
+              <TrophyIcon size={18} color={Colors.accent} />
+              <Text style={styles.quickNavBtnText}>Progress Center</Text>
+              <Text style={styles.quickNavBtnSub}>View scores & streak</Text>
+            </TouchableOpacity>
 
-          <View style={styles.statCard}>
-            <View style={styles.statHeader}>
-              <SparklesIcon color="#10B981" size={16} />
-              <Text style={styles.statLabel}>Completed</Text>
-            </View>
-            <Text style={styles.statValue}>82%</Text>
-            <Text style={styles.statSub}>Syllabus coverage</Text>
+            <TouchableOpacity
+              style={styles.quickNavBtn}
+              onPress={() => onNavigateToTab(1)}
+              activeOpacity={0.8}
+            >
+              <BatchesIcon size={18} color="#059669" />
+              <Text style={styles.quickNavBtnText}>Live Batches</Text>
+              <Text style={styles.quickNavBtnSub}>Admissions open</Text>
+            </TouchableOpacity>
           </View>
+        )}
+
+        {/* WhatsApp Academy Support Card */}
+        <View style={styles.supportCard}>
+          <View style={styles.supportHeader}>
+            <WhatsAppIcon size={20} color="#10B981" />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.supportTitle}>Direct WhatsApp Guidance</Text>
+              <Text style={styles.supportSub}>Connect directly with Sir Dilshad Murtaza</Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            style={styles.supportActionBtn}
+            onPress={() =>
+              Linking.openURL(
+                "https://wa.me/923018183624?text=Salam%20Sir!%20I%20need%20guidance%20regarding%20Dreams%20Academy."
+              ).catch(() => {})
+            }
+            activeOpacity={0.85}
+          >
+            <WhatsAppIcon size={15} color="#FFFFFF" />
+            <Text style={styles.supportActionBtnText}>Chat on WhatsApp (0301-8183624)</Text>
+          </TouchableOpacity>
         </View>
 
-        <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <View style={styles.statHeader}>
-              <StarIcon color="#F59E0B" size={14} />
-              <Text style={styles.statLabel}>Quiz Accuracy</Text>
-            </View>
-            <Text style={styles.statValue}>91%</Text>
-            <Text style={styles.statSub}>Average scores</Text>
-          </View>
-
-          <View style={styles.statCard}>
-            <View style={styles.statHeader}>
-              <TrophyIcon color="#EC4899" size={16} />
-              <Text style={styles.statLabel}>Badges</Text>
-            </View>
-            <Text style={styles.statValue}>4 Unlocked</Text>
-            <Text style={styles.statSub}>Out of 6 available</Text>
-          </View>
-        </View>
-
-        {/* Subject Mastery Analytics Chart */}
+        {/* About Dreams Virtual Academy Section */}
         <View style={styles.sectionCard}>
-          <Text style={styles.cardHeading}>📊 Subject Mastery Analytics</Text>
-          <View style={styles.chartContainer}>
-            <Svg width="260" height="140" viewBox="0 0 260 140">
-              <Line x1="40" y1="20" x2="240" y2="20" stroke="#334155" strokeWidth="1" strokeDasharray="3,3" />
-              <Line x1="40" y1="65" x2="240" y2="65" stroke="#334155" strokeWidth="1" strokeDasharray="3,3" />
-              <Line x1="40" y1="110" x2="240" y2="110" stroke="#475569" strokeWidth="1.5" />
-
-              <SvgText x="30" y="23" fill="#94A3B8" fontSize="7" fontWeight="bold" textAnchor="end">100%</SvgText>
-              <SvgText x="30" y="68" fill="#94A3B8" fontSize="7" fontWeight="bold" textAnchor="end">50%</SvgText>
-              <SvgText x="30" y="113" fill="#94A3B8" fontSize="7" fontWeight="bold" textAnchor="end">0%</SvgText>
-
-              {chartData.map((data, index) => {
-                const xOffset = 58 + index * 48;
-                return (
-                  <ChartBar
-                    key={index}
-                    percentage={data.percentage}
-                    color={data.color}
-                    xOffset={xOffset}
-                    label={data.label}
-                    delay={200 + index * 100}
-                  />
-                );
-              })}
-            </Svg>
-          </View>
-        </View>
-
-        {/* Achievements Section */}
-        <Text style={styles.sectionHeading}>🏆 Achievements & Badges</Text>
-        <View style={styles.badgeList}>
-          <View style={styles.badgeCard}>
-            <View style={[styles.badgeIconContainer, { borderColor: '#10B98125', backgroundColor: '#10B98110' }]}>
-              <CheckCircleIcon size={20} color="#10B981" />
+          <Text style={styles.cardHeading}>About Dreams Virtual Academy</Text>
+          <Text style={styles.aboutSindhi}>
+            ڊريمز ورچوئل اڪيڊمي: سنڌي ٻوليءَ ۾ سائنس، فزڪس ۽ نوڪرين جي امتحانن جي تياري جو سڀ کان وڏو مرڪز
+          </Text>
+          <Text style={styles.aboutDesc}>
+            Dreams Virtual Academy is Sindh's premier online learning initiative dedicated to making quality science, physics, chemistry, mathematics, and competitive exam preparation accessible to every student in easy Sindhi and English.
+          </Text>
+          <View style={styles.aboutStatsRow}>
+            <View style={styles.aboutStatItem}>
+              <Text style={styles.aboutStatNum}>15,000+</Text>
+              <Text style={styles.aboutStatLabel}>Students</Text>
             </View>
-            <View style={styles.badgeInfo}>
-              <Text style={styles.badgeTitle}>Quick Starter</Text>
-              <Text style={styles.badgeDesc}>Completed your first study guide revision notes.</Text>
+            <View style={styles.aboutStatDivider} />
+            <View style={styles.aboutStatItem}>
+              <Text style={styles.aboutStatNum}>85+</Text>
+              <Text style={styles.aboutStatLabel}>Lectures</Text>
             </View>
-          </View>
-
-          <View style={styles.badgeCard}>
-            <View style={[styles.badgeIconContainer, { borderColor: '#7C5CFF25', backgroundColor: '#7C5CFF10' }]}>
-              <SparklesIcon size={20} color="#7C5CFF" />
-            </View>
-            <View style={styles.badgeInfo}>
-              <Text style={styles.badgeTitle}>Perfect Evaluator</Text>
-              <Text style={styles.badgeDesc}>Scored 100% on a science diagnostic test module.</Text>
+            <View style={styles.aboutStatDivider} />
+            <View style={styles.aboutStatItem}>
+              <Text style={styles.aboutStatNum}>4</Text>
+              <Text style={styles.aboutStatLabel}>Mentors</Text>
             </View>
           </View>
         </View>
 
-        {/* App Settings / Preferences */}
-        <Text style={styles.sectionHeading}>⚙️ App Preferences</Text>
-        <View style={styles.settingsCard}>
+        {/* Preferences */}
+        <View style={styles.sectionCard}>
+          <Text style={styles.cardHeading}>App Preferences</Text>
+
           <View style={styles.settingItem}>
-            <View style={styles.settingTextContainer}>
-              <Text style={styles.settingTitle}>Dark Interface Theme</Text>
-              <Text style={styles.settingSub}>Optimal reading mode for night study</Text>
-            </View>
-            <Switch
-              value={darkMode}
-              onValueChange={setDarkMode}
-              trackColor={{ false: "#334155", true: "#7C5CFF" }}
-              thumbColor={darkMode ? "#FFFFFF" : "#94A3B8"}
-            />
-          </View>
-
-          <View style={[styles.settingItem, styles.settingItemBorder]}>
-            <View style={styles.settingTextContainer}>
+            <View style={{ flex: 1 }}>
               <Text style={styles.settingTitle}>Study Reminders</Text>
-              <Text style={styles.settingSub}>Notifications for daily test practice</Text>
+              <Text style={styles.settingSub}>Daily notifications for practice tests</Text>
             </View>
             <Switch
               value={notifications}
               onValueChange={setNotifications}
-              trackColor={{ false: "#334155", true: "#7C5CFF" }}
-              thumbColor={notifications ? "#FFFFFF" : "#94A3B8"}
-            />
-          </View>
-
-          <View style={[styles.settingItem, styles.settingItemBorder]}>
-            <View style={styles.settingTextContainer}>
-              <Text style={styles.settingTitle}>Offline Mode Cache</Text>
-              <Text style={styles.settingSub}>Access saved notes without active internet</Text>
-            </View>
-            <Switch
-              value={offlineMode}
-              onValueChange={setOfflineMode}
-              trackColor={{ false: "#334155", true: "#7C5CFF" }}
-              thumbColor={offlineMode ? "#FFFFFF" : "#94A3B8"}
+              trackColor={{ false: "#E2E8F0", true: Colors.accent }}
+              thumbColor="#FFFFFF"
             />
           </View>
         </View>
@@ -365,329 +203,284 @@ export const ProfileScreen: React.FC<ProfileProps> = ({ user, onLogout, onBack }
           onPress={onLogout}
           activeOpacity={0.85}
         >
-          <LogoutIcon size={20} color="#EF4444" />
-          <Text style={styles.logoutBtnText}>LOG OUT OF ACCOUNT</Text>
+          <LogoutIcon size={16} color="#EF4444" />
+          <Text style={styles.logoutBtnText}>Log Out of Account</Text>
         </TouchableOpacity>
 
-        {/* Version Footer */}
         <View style={styles.versionFooter}>
           <Text style={styles.versionTitle}>DREAMS VIRTUAL ACADEMY</Text>
-          <Text style={styles.versionSub}>Version 1.0.0 • Production Build</Text>
+          <Text style={styles.versionSub}>Official Mobile Application • Version 2.0.0</Text>
         </View>
 
-        <View style={{ height: 120 }} />
+        <View style={{ height: 110 }} />
       </ScrollView>
     </View>
   );
 };
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: Colors.background,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 14,
-    backgroundColor: '#0F172A',
+    paddingHorizontal: 14,
+    paddingTop: 8,
+    paddingBottom: 10,
+    backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
-    borderBottomColor: '#1E293B',
+    borderBottomColor: Colors.cardBorder,
+  },
+  headerTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#1E293B',
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#F8FAFC",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
   },
   headerCenter: {
-    flex: 1,
-    alignItems: 'center',
+    alignItems: "center",
   },
   roleBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#7C5CFF18',
-    borderRadius: 20,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    marginBottom: 3,
-    borderWidth: 1,
-    borderColor: '#7C5CFF30',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.accentLight,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    marginBottom: 2,
+    gap: 4,
   },
   roleBadgeText: {
-    fontSize: 9,
-    color: '#7C5CFF',
-    fontWeight: '800',
-    marginLeft: 5,
-    letterSpacing: 0.6,
+    fontSize: 8,
+    color: Colors.accent,
+    fontWeight: "800",
+    letterSpacing: 0.3,
   },
   headerTitle: {
     fontSize: 14,
-    fontWeight: '800',
-    color: '#F1F5F9',
-    letterSpacing: 0.2,
-  },
-  headerPlaceholder: {
-    width: 38,
-    height: 38,
+    fontWeight: "800",
+    color: Colors.textDark,
   },
   scroll: {
     flex: 1,
   },
   scrollContent: {
-    padding: 16,
+    paddingHorizontal: 14,
+    paddingTop: 12,
   },
-  // User Card
   userCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1E293B',
-    borderRadius: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 12,
     borderWidth: 1,
-    borderColor: '#334155',
-    padding: 16,
-    marginBottom: 16,
-  },
-  avatarWrapper: {
-    position: 'relative',
-    marginRight: 14,
+    borderColor: Colors.cardBorder,
+    marginBottom: 12,
+    gap: 12,
   },
   avatarImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     borderWidth: 2,
-    borderColor: '#7C5CFF',
-    backgroundColor: '#334155',
-  },
-  onlineBadge: {
-    position: 'absolute',
-    bottom: 2,
-    right: 2,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: '#10B981',
-    borderWidth: 2,
-    borderColor: '#1E293B',
+    borderColor: Colors.accent,
   },
   userInfo: {
     flex: 1,
   },
   userName: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#F1F5F9',
-    letterSpacing: 0.2,
+    fontSize: 14,
+    fontWeight: "800",
+    color: Colors.textDark,
   },
   userEmail: {
     fontSize: 11,
-    color: '#94A3B8',
-    fontWeight: '500',
-    marginTop: 2,
+    color: Colors.textLight,
+    marginBottom: 4,
   },
-  userMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-    gap: 8,
+  metaRow: {
+    flexDirection: "row",
+    gap: 6,
+    flexWrap: "wrap",
   },
   metaChip: {
-    backgroundColor: '#334155',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  metaChipGold: {
-    backgroundColor: '#F59E0B18',
-    borderWidth: 1,
-    borderColor: '#F59E0B30',
+    backgroundColor: Colors.accentLight,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
   },
   metaChipText: {
     fontSize: 9,
-    color: '#CBD5E1',
-    fontWeight: '700',
+    fontWeight: "700",
+    color: Colors.accent,
   },
-  // Section Card
-  sectionCard: {
-    backgroundColor: '#1E293B',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#334155',
-    padding: 16,
-    marginBottom: 16,
-  },
-  cardHeading: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#F1F5F9',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+  quickNavRow: {
+    flexDirection: "row",
+    gap: 8,
     marginBottom: 12,
   },
-  chartContainer: {
-    alignItems: 'center',
-    width: '100%',
-  },
-  // Stats
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-    gap: 12,
-  },
-  statCard: {
+  quickNavBtn: {
     flex: 1,
-    backgroundColor: '#1E293B',
-    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    padding: 10,
     borderWidth: 1,
-    borderColor: '#334155',
-    padding: 14,
+    borderColor: Colors.cardBorder,
   },
-  statHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  quickNavBtnText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: Colors.textDark,
+    marginTop: 4,
+  },
+  quickNavBtnSub: {
+    fontSize: 9,
+    color: Colors.textLight,
+  },
+  supportCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    marginBottom: 12,
+  },
+  supportHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
     marginBottom: 8,
+  },
+  supportTitle: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: Colors.textDark,
+  },
+  supportSub: {
+    fontSize: 10,
+    color: Colors.textLight,
+  },
+  supportActionBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#10B981",
+    paddingVertical: 8,
+    borderRadius: 10,
     gap: 6,
   },
-  statLabel: {
-    fontSize: 10,
-    color: '#94A3B8',
-    fontWeight: '700',
+  supportActionBtnText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 11,
   },
-  statValue: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#F1F5F9',
-    marginBottom: 2,
-  },
-  statSub: {
-    fontSize: 9,
-    color: '#64748B',
-    fontWeight: '600',
-  },
-  // Achievements
-  sectionHeading: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#F1F5F9',
-    marginTop: 8,
-    marginBottom: 12,
-    letterSpacing: 0.2,
-    textTransform: 'uppercase',
-  },
-  badgeList: {
-    marginBottom: 16,
-  },
-  badgeCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1E293B',
+  sectionCard: {
+    backgroundColor: "#FFFFFF",
     borderRadius: 16,
+    padding: 12,
     borderWidth: 1,
-    borderColor: '#334155',
-    padding: 14,
+    borderColor: Colors.cardBorder,
+    marginBottom: 12,
+  },
+  cardHeading: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: Colors.textDark,
+    marginBottom: 6,
+  },
+  aboutSindhi: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: Colors.accent,
+    lineHeight: 16,
+    marginBottom: 6,
+  },
+  aboutDesc: {
+    fontSize: 11,
+    color: Colors.textLight,
+    lineHeight: 16,
     marginBottom: 10,
   },
-  badgeIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  badgeInfo: {
-    flex: 1,
-  },
-  badgeTitle: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#F1F5F9',
-    marginBottom: 2,
-  },
-  badgeDesc: {
-    fontSize: 10,
-    color: '#94A3B8',
-    lineHeight: 14,
-  },
-  // Settings Card
-  settingsCard: {
-    backgroundColor: '#1E293B',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#334155',
-    paddingHorizontal: 16,
+  aboutStatsRow: {
+    flexDirection: "row",
+    backgroundColor: "#F8FAFC",
     paddingVertical: 8,
-    marginBottom: 20,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  aboutStatItem: {
+    flex: 1,
+    alignItems: "center",
+  },
+  aboutStatDivider: {
+    width: 1,
+    height: 20,
+    backgroundColor: "#E2E8F0",
+  },
+  aboutStatNum: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: Colors.textDark,
+  },
+  aboutStatLabel: {
+    fontSize: 9,
+    color: Colors.textLight,
   },
   settingItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-  },
-  settingItemBorder: {
-    borderTopWidth: 1,
-    borderTopColor: '#334155',
-  },
-  settingTextContainer: {
-    flex: 1,
-    marginRight: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 4,
   },
   settingTitle: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#F1F5F9',
+    fontWeight: "700",
+    color: Colors.textDark,
   },
   settingSub: {
-    fontSize: 9,
-    color: '#94A3B8',
-    marginTop: 2,
+    fontSize: 10,
+    color: Colors.textLight,
   },
-  // Logout Button
   logoutBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#EF444415',
-    borderWidth: 1.5,
-    borderColor: '#EF444440',
-    borderRadius: 16,
-    paddingVertical: 14,
-    gap: 8,
-    marginBottom: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    paddingVertical: 10,
+    borderRadius: 12,
+    gap: 6,
+    marginBottom: 14,
   },
   logoutBtnText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#EF4444',
-    letterSpacing: 0.6,
+    color: "#EF4444",
+    fontWeight: "800",
+    fontSize: 11,
   },
-  // Footer
   versionFooter: {
-    alignItems: 'center',
-    marginVertical: 8,
+    alignItems: "center",
+    marginBottom: 10,
   },
   versionTitle: {
     fontSize: 9,
-    fontWeight: '800',
-    color: '#64748B',
-    letterSpacing: 1,
+    fontWeight: "800",
+    color: Colors.textMuted,
+    letterSpacing: 0.5,
   },
   versionSub: {
-    fontSize: 8,
-    color: '#475569',
+    fontSize: 9,
+    color: Colors.textMuted,
     marginTop: 2,
   },
 });

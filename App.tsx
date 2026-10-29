@@ -8,36 +8,46 @@ import {
   Animated,
   Dimensions,
   BackHandler,
-  ActivityIndicator,
+  StyleSheet,
+  Platform,
 } from "react-native";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "./src/theme/Colors";
-import { HomeIcon, TestsIcon, NotesIcon, VideosIcon, ProfileIcon } from "./src/shared/widgets/Icons";
+import {
+  HomeIcon,
+  BatchesIcon,
+  TestsIcon,
+  NotesIcon,
+  VideosIcon,
+  TrophyIcon,
+  SparklesIcon,
+} from "./src/shared/widgets/Icons";
 import { LoginScreen, SignupScreen, ForgotPasswordScreen } from "./src/features/auth/AuthScreens";
 import { HomeScreen } from "./src/features/home/HomeScreen";
+import { BatchesScreen } from "./src/features/batches/BatchesScreen";
 import { TestsScreen } from "./src/features/tests/TestsScreen";
 import { NotesScreen } from "./src/features/notes/NotesScreen";
 import { YouTubeVideosScreen } from "./src/features/youtube/YouTubeVideosScreen";
+import { ProgressScreen } from "./src/features/progress/ProgressScreen";
 import { ProfileScreen } from "./src/features/profile/ProfileScreen";
-import { SubjectsScreen } from "./src/features/subjects/SubjectsScreen";
-import { Subject } from "./src/data/mockData";
+import { SplashScreen } from "./src/shared/components/SplashScreen";
 import { ExitConfirmModal } from "./src/shared/components/ExitConfirmModal";
-import { supabase } from "./src/lib/supabase";
 import { ToastModal, ToastConfig } from "./src/shared/components/ToastModal";
+import { UstadAiModal } from "./src/shared/components/UstadAiModal";
+import { supabase } from "./src/lib/supabase";
 
 const TABS = [
   { label: "Home", icon: HomeIcon },
+  { label: "Batches", icon: BatchesIcon },
   { label: "Tests", icon: TestsIcon },
   { label: "Notes", icon: NotesIcon },
   { label: "Videos", icon: VideosIcon },
-  { label: "Profile", icon: ProfileIcon },
+  { label: "Progress", icon: TrophyIcon },
 ];
 
-const TAB_BAR_MARGIN = 16;
-const TAB_CONTAINER_WIDTH = Dimensions.get("window").width - (TAB_BAR_MARGIN * 2);
-const TAB_BAR_PADDING_H = 8; // paddingHorizontal on the pill container (each side)
-const TAB_WIDTH = TAB_CONTAINER_WIDTH / TABS.length;
-// Actual width per tab button (accounting for pill's paddingHorizontal on both sides)
+const TAB_BAR_MARGIN = 14;
+const TAB_CONTAINER_WIDTH = Dimensions.get("window").width - TAB_BAR_MARGIN * 2;
+const TAB_BAR_PADDING_H = 4;
 const INNER_TAB_WIDTH = (TAB_CONTAINER_WIDTH - TAB_BAR_PADDING_H * 2) / TABS.length;
 
 function App() {
@@ -46,7 +56,7 @@ function App() {
   return (
     <SafeAreaProvider>
       <StatusBar
-        barStyle={isDarkMode ? "light-content" : "dark-content"}
+        barStyle="dark-content"
         backgroundColor={Colors.background}
       />
       <AppContent />
@@ -62,9 +72,9 @@ function AppContent() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [authScreen, setAuthScreen] = useState<"login" | "signup" | "forgot">("login");
   const [activeTab, setActiveTab] = useState(0);
-  const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
   const [exitModalVisible, setExitModalVisible] = useState(false);
   const [toast, setToast] = useState<ToastConfig>({ visible: false, message: "" });
+  const [ustadAiVisible, setUstadAiVisible] = useState(false);
 
   // ─── Supabase Auth Session Listener ───────────────────────────────────────
   useEffect(() => {
@@ -83,14 +93,10 @@ function AppContent() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Animated sliding indicator position
+  // Sliding indicator position
   const indicatorX = useRef(new Animated.Value(0)).current;
-  // Pure slide — NO opacity, so no white flash ever
   const contentSlideX = useRef(new Animated.Value(0)).current;
-  // Track previous tab for slide direction
   const prevTabRef = useRef(0);
-
-  // Scale variables for tab icons to create a nice micro-animation
   const tabScales = useRef(TABS.map(() => new Animated.Value(1))).current;
 
   const handleNavigateToTab = (tabIndex: number) => {
@@ -98,110 +104,73 @@ function AppContent() {
 
     const direction = tabIndex > prevTabRef.current ? 1 : -1;
     prevTabRef.current = tabIndex;
-    const SCREEN_W = Dimensions.get('window').width;
+    const SCREEN_W = Dimensions.get("window").width;
 
-    // Tab icon pulse
-    Animated.sequence([
-      Animated.timing(tabScales[tabIndex], {
-        toValue: 1.25,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-      Animated.spring(tabScales[tabIndex], {
-        toValue: 1,
-        friction: 4,
-        useNativeDriver: true,
-      }),
-    ]).start();
+    if (tabIndex < TABS.length) {
+      Animated.sequence([
+        Animated.timing(tabScales[tabIndex], {
+          toValue: 1.15,
+          duration: 90,
+          useNativeDriver: true,
+        }),
+        Animated.spring(tabScales[tabIndex], {
+          toValue: 1,
+          friction: 4,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
 
-    // Slide out current screen instantly off-screen,
-    // then instantly position new screen on the incoming side,
-    // then spring it into place — ZERO opacity change, ZERO flash
     Animated.timing(contentSlideX, {
       toValue: -direction * SCREEN_W,
-      duration: 220,
+      duration: 160,
       useNativeDriver: true,
     }).start(() => {
-      setSelectedSubject(null);
       setActiveTab(tabIndex);
       contentSlideX.setValue(direction * SCREEN_W);
 
-      Animated.spring(indicatorX, {
-        toValue: tabIndex * INNER_TAB_WIDTH,
-        useNativeDriver: true,
-        bounciness: 6,
-        speed: 12,
-      }).start();
+      if (tabIndex < TABS.length) {
+        Animated.spring(indicatorX, {
+          toValue: tabIndex * INNER_TAB_WIDTH,
+          useNativeDriver: true,
+          bounciness: 4,
+          speed: 14,
+        }).start();
+      }
 
       Animated.spring(contentSlideX, {
         toValue: 0,
-        tension: 70,
-        friction: 10,
+        tension: 80,
+        friction: 12,
         useNativeDriver: true,
       }).start();
     });
   };
 
-  const handleSelectSubject = (subject: Subject | null) => {
-    const SCREEN_W = Dimensions.get('window').width;
-    if (subject) {
-      // Open detail — slide out left, bring in from right
-      Animated.timing(contentSlideX, {
-        toValue: -SCREEN_W,
-        duration: 220,
-        useNativeDriver: true,
-      }).start(() => {
-        setSelectedSubject(subject);
-        contentSlideX.setValue(SCREEN_W);
-        Animated.spring(contentSlideX, {
-          toValue: 0,
-          tension: 70,
-          friction: 10,
-          useNativeDriver: true,
-        }).start();
-      });
-    } else {
-      // Go back — slide out right, bring in from left
-      Animated.timing(contentSlideX, {
-        toValue: SCREEN_W,
-        duration: 220,
-        useNativeDriver: true,
-      }).start(() => {
-        setSelectedSubject(null);
-        contentSlideX.setValue(-SCREEN_W);
-        Animated.spring(contentSlideX, {
-          toValue: 0,
-          tension: 70,
-          friction: 10,
-          useNativeDriver: true,
-        }).start();
-      });
-    }
-  };
-
   // Init indicator position on mount
   useEffect(() => {
-    indicatorX.setValue(activeTab * INNER_TAB_WIDTH);
-  }, [activeTab,indicatorX]);
+    if (activeTab < TABS.length) {
+      indicatorX.setValue(activeTab * INNER_TAB_WIDTH);
+    }
+  }, [activeTab, indicatorX]);
 
   // ─── Android Physical Back Button Handler ───────────────────────────────────
   useEffect(() => {
     const backAction = () => {
-      // 1) Agar subject detail screen open hai → animated wapasi
-      if (selectedSubject) {
-        handleSelectSubject(null);
+      if (ustadAiVisible) {
+        setUstadAiVisible(false);
         return true;
       }
 
-      // 2) Agar Home tab nahi hai → Home tab pe aao
+      // If not on Home tab → Return to Home tab
       if (activeTab !== 0) {
         handleNavigateToTab(0);
         return true;
       }
 
-      // 3) Home tab pe hain → custom animated exit confirmation modal
+      // On Home tab → Show exit modal
       setExitModalVisible(true);
-      return true; // system ko back event handle karne se rokta hai
+      return true;
     };
 
     const backHandler = BackHandler.addEventListener(
@@ -209,16 +178,11 @@ function AppContent() {
       backAction
     );
 
-    // Cleanup on unmount
     return () => backHandler.remove();
-  }, [activeTab, selectedSubject,]);
+  }, [activeTab, ustadAiVisible]);
 
   if (initializing) {
-    return (
-      <View style={{ flex: 1, backgroundColor: "#0F172A", alignItems: "center", justifyContent: "center" }}>
-        <ActivityIndicator size="large" color="#7C5CFF" />
-      </View>
-    );
+    return <SplashScreen />;
   }
 
   if (!isLoggedIn) {
@@ -247,50 +211,49 @@ function AppContent() {
   }
 
   const renderTabContent = () => {
-    if (selectedSubject) {
-      return (
-        <SubjectsScreen
-          selectedSubject={selectedSubject}
-          onSelectSubject={handleSelectSubject}
-        />
-      );
-    }
-
     switch (activeTab) {
       case 0:
         return (
           <HomeScreen
             onNavigateToTab={handleNavigateToTab}
-            onSelectSubject={handleSelectSubject}
             user={user}
           />
         );
       case 1:
-        return <TestsScreen />;
+        return <BatchesScreen user={user} onBack={() => handleNavigateToTab(0)} />;
       case 2:
-        return <NotesScreen onBack={() => handleNavigateToTab(0)} />;
+        return <TestsScreen user={user} onBack={() => handleNavigateToTab(0)} />;
       case 3:
-        return <YouTubeVideosScreen onBack={() => handleNavigateToTab(0)} />;
+        return <NotesScreen onBack={() => handleNavigateToTab(0)} />;
       case 4:
+        return <YouTubeVideosScreen onBack={() => handleNavigateToTab(0)} />;
+      case 5:
+        return <ProgressScreen user={user} onBack={() => handleNavigateToTab(0)} onNavigateToTab={handleNavigateToTab} />;
+      case 6:
         return (
           <ProfileScreen
             user={user}
             onLogout={async () => {
-              setToast({ visible: true, type: "info", title: "Signed Out", message: "You have been successfully logged out. See you soon! 👋" });
+              setToast({
+                visible: true,
+                type: "info",
+                title: "Signed Out",
+                message: "You have been successfully logged out. See you soon! 👋",
+              });
               setTimeout(() => supabase.auth.signOut(), 1200);
             }}
             onBack={() => handleNavigateToTab(0)}
+            onNavigateToTab={handleNavigateToTab}
           />
         );
       default:
         return (
           <HomeScreen
             onNavigateToTab={handleNavigateToTab}
-            onSelectSubject={handleSelectSubject}
             user={user}
           />
         );
-    }
+      }
   };
 
   return (
@@ -302,103 +265,97 @@ function AppContent() {
         paddingBottom: 0,
       }}
     >
-      {/* Tab content — pure slide, no opacity flash */}
+      {/* Tab content animation */}
       <Animated.View
         style={{
           flex: 1,
-          overflow: 'hidden',
+          overflow: "hidden",
           transform: [{ translateX: contentSlideX }],
         }}
       >
         {renderTabContent()}
       </Animated.View>
 
-      {/* Floating pill navigation bar (only show if not inside a selected subject detail view) */}
-      {!selectedSubject && (
-        <View
-          style={{
-            position: "absolute",
-            bottom: insets.bottom ,
-            left: TAB_BAR_MARGIN,
-            right: TAB_BAR_MARGIN,
-            backgroundColor: "#FFFFFF",
-            borderRadius: 32,
-            paddingVertical: 10,
-            paddingHorizontal: 8,
-            shadowColor: Colors.textDark,
-            shadowOffset: { width: 0, height: 6 },
-            shadowOpacity: 0.12,
-            shadowRadius: 16,
-            elevation: 10,
-            borderWidth: 1,
-            borderColor: Colors.primary + "20",
-          }}
-        >
-          {/* Sliding capsule indicator background */}
+      {/* Floating Ustad AI Trigger Pill */}
+      <TouchableOpacity
+        style={[styles.floatingAiBtn, { bottom: Math.max(insets.bottom, 10) + 68 }]}
+        activeOpacity={0.88}
+        onPress={() => setUstadAiVisible(true)}
+      >
+        <View style={styles.aiGlowDot} />
+        <SparklesIcon size={14} color="#F59E0B" />
+        <Text style={styles.floatingAiBtnText}>Ask Ustad AI</Text>
+      </TouchableOpacity>
+
+      {/* Modern Floating Bottom Navigation Bar */}
+      <View
+        style={[
+          styles.tabBarContainer,
+          { bottom: Math.max(insets.bottom, 10) },
+        ]}
+      >
+        {/* Sliding capsule indicator background */}
+        {activeTab < TABS.length && (
           <Animated.View
-            style={{
-              position: "absolute",
-              top: 8,
-              left: TAB_BAR_PADDING_H,
-              width: INNER_TAB_WIDTH,
-              height: 44,
-              backgroundColor: Colors.accent + "12", // Tinted glass highlight
-              borderRadius: 22,
-              borderWidth: 1,
-              borderColor: Colors.accent + "18",
-              transform: [{ translateX: indicatorX }],
-            }}
+            style={[
+              styles.slidingIndicator,
+              {
+                width: INNER_TAB_WIDTH,
+                transform: [{ translateX: indicatorX }],
+              },
+            ]}
           />
+        )}
 
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            {TABS.map((tab, index) => {
-              const isActive = activeTab === index;
-              const IconComp = tab.icon;
+        <View style={styles.tabRow}>
+          {TABS.map((tab, index) => {
+            const isActive = activeTab === index;
+            const IconComp = tab.icon;
 
-              return (
-                <TouchableOpacity
-                  key={index}
-                  onPress={() => handleNavigateToTab(index)}
-                  activeOpacity={0.7}
+            return (
+              <TouchableOpacity
+                key={index}
+                onPress={() => handleNavigateToTab(index)}
+                activeOpacity={0.7}
+                style={styles.tabItem}
+              >
+                <Animated.View
                   style={{
-                    flex: 1,
                     alignItems: "center",
                     justifyContent: "center",
-                    height: 40,
+                    transform: [{ scale: tabScales[index] }],
                   }}
                 >
-                  <Animated.View
-                    style={{
-                      alignItems: "center",
-                      justifyContent: "center",
-                      transform: [{ scale: tabScales[index] }],
-                    }}
-                  >
-                    <IconComp
-                      color={isActive ? Colors.accent : Colors.textLight}
-                      size={18}
-                    />
-                    <Text
-                      style={{
-                        fontSize: 8,
-                        fontWeight: isActive ? "800" : "600",
+                  <IconComp
+                    color={isActive ? Colors.accent : Colors.textLight}
+                    size={17}
+                  />
+                  <Text
+                    style={[
+                      styles.tabLabel,
+                      {
+                        fontWeight: isActive ? "700" : "500",
                         color: isActive ? Colors.accent : Colors.textLight,
-                        marginTop: 2.5,
-                        letterSpacing: 0.2,
-                      }}
-                    >
-                      {tab.label}
-                    </Text>
-                  </Animated.View>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+                      },
+                    ]}
+                  >
+                    {tab.label}
+                  </Text>
+                </Animated.View>
+              </TouchableOpacity>
+            );
+          })}
         </View>
-      )}
+      </View>
+
+      {/* Ustad AI Interactive Modal */}
+      <UstadAiModal
+        visible={ustadAiVisible}
+        onClose={() => setUstadAiVisible(false)}
+      />
 
       {/* Toast Notification */}
-      <ToastModal toast={toast} onHide={() => setToast(t => ({ ...t, visible: false }))} />
+      <ToastModal toast={toast} onHide={() => setToast((t) => ({ ...t, visible: false }))} />
 
       {/* Exit Confirmation Modal */}
       <ExitConfirmModal
@@ -412,5 +369,80 @@ function AppContent() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  floatingAiBtn: {
+    position: "absolute",
+    right: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#1E1A29",
+    paddingVertical: 7,
+    paddingHorizontal: 13,
+    borderRadius: 20,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: "rgba(124, 92, 255, 0.4)",
+    shadowColor: Colors.accent,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 8,
+    zIndex: 99,
+  },
+  aiGlowDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#10B981",
+  },
+  floatingAiBtnText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 11,
+    letterSpacing: 0.2,
+  },
+  tabBarContainer: {
+    position: "absolute",
+    left: TAB_BAR_MARGIN,
+    right: TAB_BAR_MARGIN,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 26,
+    paddingVertical: 5,
+    paddingHorizontal: TAB_BAR_PADDING_H,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+  },
+  slidingIndicator: {
+    position: "absolute",
+    top: 5,
+    left: TAB_BAR_PADDING_H,
+    height: 44,
+    backgroundColor: Colors.accentLight,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(124, 92, 255, 0.2)",
+  },
+  tabRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    height: 44,
+  },
+  tabLabel: {
+    fontSize: 9,
+    marginTop: 2,
+    letterSpacing: -0.1,
+  },
+});
 
 export default App;

@@ -1,1167 +1,1162 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   ScrollView,
-  TextInput,
   TouchableOpacity,
-  Animated,
-  Platform,
-  Dimensions,
   StyleSheet,
-  StatusBar,
+  ActivityIndicator,
 } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import Svg, { Path, Circle, Line, Polyline, Rect, Polygon } from "react-native-svg";
-import { ALL_MCQ_QUIZZES, JSONQuiz, JSONQuestion } from "../../JSON/all_mcqs";
 import Colors from "../../theme/Colors";
+import {
+  FEATURED_TESTS,
+  SUBJECT_MOCK_QUESTIONS,
+  FeaturedTest,
+  MockQuestion,
+} from "../../data/academyData";
+import {
+  TestsIcon,
+  ClockIcon,
+  CheckIcon,
+  BackIcon,
+  SparklesIcon,
+  TrophyIcon,
+} from "../../shared/widgets/Icons";
+import { supabase } from "../../lib/supabase";
+import Svg, { Path, Polyline, Line } from "react-native-svg";
 
-const { width, height: screenHeight } = Dimensions.get("window");
-
-// ─── Custom Premium Icons ───────────────────────────────────────────────────
-
-const SearchIcon = ({ size = 20, color = "#94A3B8" }) => (
+const FileQuestionIcon = ({ size = 14, color = Colors.accent }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Circle cx="11" cy="11" r="8" stroke={color} strokeWidth="2" />
-    <Line x1="21" y1="21" x2="16.65" y2="16.65" stroke={color} strokeWidth="2" strokeLinecap="round" />
+    <Path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    <Polyline points="14 2 14 8 20 8" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    <Line x1="12" y1="17" x2="12.01" y2="17" stroke={color} strokeWidth="2.5" strokeLinecap="round" />
   </Svg>
 );
 
-const BackIcon = ({ size = 20, color = "#FFFFFF" }) => (
+const XIcon = ({ size = 14, color = "#EF4444" }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Path d="M19 12H5M12 5l-7 7 7 7" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+    <Line x1="18" y1="6" x2="6" y2="18" stroke={color} strokeWidth="2.2" strokeLinecap="round" />
+    <Line x1="6" y1="6" x2="18" y2="18" stroke={color} strokeWidth="2.2" strokeLinecap="round" />
   </Svg>
 );
 
-const CheckIcon = ({ size = 16, color = "#10B981" }) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Polyline points="20 6 9 17 4 12" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
+interface TestsScreenProps {
+  onBack?: () => void;
+  user?: any;
+}
 
-const XIcon = ({ size = 16, color = "#EF4444" }) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Line x1="18" y1="6" x2="6" y2="18" stroke={color} strokeWidth="3" strokeLinecap="round" />
-    <Line x1="6" y1="6" x2="18" y2="18" stroke={color} strokeWidth="3" strokeLinecap="round" />
-  </Svg>
-);
+export const TestsScreen: React.FC<TestsScreenProps> = ({ onBack, user }) => {
+  // Generator Filter State
+  const [selectedSubject, setSelectedSubject] = useState("Science");
+  const [selectedLevel, setSelectedLevel] = useState<"easy" | "medium" | "hard">("easy");
+  const [selectedType, setSelectedType] = useState("Mock Exams");
 
-const ClockIcon = ({ size = 12, color = "#94A3B8" }) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Circle cx="12" cy="12" r="10" stroke={color} strokeWidth="2" />
-    <Path d="M12 6v6l4 2" stroke={color} strokeWidth="2" strokeLinecap="round" />
-  </Svg>
-);
+  // Quiz Taking State
+  const [activeTest, setActiveTest] = useState<{
+    title: string;
+    subject: string;
+    level: string;
+    questions: MockQuestion[];
+    timeLimit: number; // minutes
+  } | null>(null);
 
-const QuizIcon = ({ size = 24, color = "#FFFFFF" }) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Circle cx="12" cy="12" r="10" stroke={color} strokeWidth="2" fill="rgba(255,255,255,0.05)" />
-    <Path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" stroke={color} strokeWidth="2" strokeLinecap="round" />
-    <Circle cx="12" cy="17" r="1" fill={color} />
-  </Svg>
-);
+  const [currentQIndex, setCurrentQIndex] = useState(0);
+  const [userAnswers, setUserAnswers] = useState<Record<number, number>>({});
+  const [timeLeft, setTimeLeft] = useState(600); // in seconds
+  const [isTestFinished, setIsTestFinished] = useState(false);
+  const [finalScore, setFinalScore] = useState(0);
+  const [savingResult, setSavingResult] = useState(false);
 
-const TrophyIcon = ({ size = 24, color = "#F59E0B" }) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Path d="M6 9H4.5a2.5 2.5 0 010-5H6M18 9h1.5a2.5 2.5 0 000-5H18" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    <Path d="M4 22h16M10 14.66V17c0 .55.45 1 1 1h2c.55 0 1-.45 1-1v-2.34M12 2a7 7 0 017 7c0 4-3 5.5-7 5.5S5 13 5 9a7 7 0 017-7z" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-  </Svg>
-);
+  const subjects = ["Science", "Physics", "Chemistry", "Mathematics", "Computer Basics"];
+  const levels: Array<"easy" | "medium" | "hard"> = ["easy", "medium", "hard"];
+  const types = ["Mock Exams", "Topic Quizzes", "Past Papers"];
 
-// ─── Helper Functions ────────────────────────────────────────────────────────
-
-const getSubjectColor = (subject: string): string => {
-  const s = subject.toLowerCase();
-  if (s.includes("science")) return "#6366F1"; // Indigo
-  if (s.includes("math")) return "#10B981"; // Emerald
-  if (s.includes("physics")) return "#EF4444"; // Red
-  if (s.includes("chemistry")) return "#F59E0B"; // Amber
-  if (s.includes("biology")) return "#EC4899"; // Pink
-  if (s.includes("english") || s.includes("grammar")) return "#8B5CF6"; // Purple
-  return "#7C5CFF";
-};
-
-const getQuizTitle = (id: string, quiz: JSONQuiz): string => {
-  if (quiz.topic) {
-    return `${quiz.topic}: ${quiz.subtopic || ""}`;
-  }
-  const gradeStr = quiz.grade ? `Class ${quiz.grade} ` : "";
-  return `${gradeStr}${quiz.subject}`;
-};
-
-// ─── Main Component ──────────────────────────────────────────────────────────
-
-export const TestsScreen: React.FC = () => {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeCategory, setActiveCategory] = useState<"all" | "middle" | "class9" | "class10" | "english">("all");
-  const [activeQuizId, setActiveQuizId] = useState<string | null>(null);
-  
-  // Quiz taking state
-  const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
-  const [userAnswers, setUserAnswers] = useState<{ [key: number]: string }>({});
-  const [isAnswerChecked, setIsAnswerChecked] = useState(false);
-  const [showResult, setShowResult] = useState(false);
-  const [quizHistory, setQuizHistory] = useState<{ [key: string]: { score: number; completedAt: string } }>({});
-
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
-
-  // Load history from AsyncStorage on mount
+  // Timer logic
   useEffect(() => {
-    loadQuizHistory();
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 500,
-        useNativeDriver: true,
-      }),
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        tension: 50,
-        friction: 8,
-        useNativeDriver: true,
-      })
-    ]).start();
-  }, []);
+    if (!activeTest || isTestFinished) return;
+    const interval = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          finishTest();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [activeTest, isTestFinished, userAnswers]);
 
-  const loadQuizHistory = async () => {
-    try {
-      const historyStr = await AsyncStorage.getItem("quiz_history_v1");
-      if (historyStr) {
-        setQuizHistory(JSON.parse(historyStr));
-      }
-    } catch (e) {
-      console.error("Failed to load quiz history", e);
-    }
-  };
+  const startCustomTest = () => {
+    const subjectPool = SUBJECT_MOCK_QUESTIONS[selectedSubject] || SUBJECT_MOCK_QUESTIONS.Science;
+    let questions = subjectPool[selectedLevel] || subjectPool.easy;
 
-  const saveQuizResult = async (quizId: string, scorePercentage: number) => {
-    try {
-      const updatedHistory = {
-        ...quizHistory,
-        [quizId]: {
-          score: scorePercentage,
-          completedAt: new Date().toLocaleDateString(),
-        },
-      };
-      setQuizHistory(updatedHistory);
-      await AsyncStorage.setItem("quiz_history_v1", JSON.stringify(updatedHistory));
-    } catch (e) {
-      console.error("Failed to save quiz result", e);
-    }
-  };
-
-  // Filter quizzes based on search query and category
-  const filteredQuizKeys = Object.keys(ALL_MCQ_QUIZZES).filter((key) => {
-    const quiz = ALL_MCQ_QUIZZES[key];
-    const title = getQuizTitle(key, quiz).toLowerCase();
-    const subject = quiz.subject.toLowerCase();
-    const matchesSearch = title.includes(searchQuery.toLowerCase()) || subject.includes(searchQuery.toLowerCase());
-
-    if (!matchesSearch) return false;
-
-    if (activeCategory === "middle") {
-      return key.startsWith("class6") || key.startsWith("class7") || key.startsWith("class8");
-    }
-    if (activeCategory === "class9") {
-      return key.startsWith("class9");
-    }
-    if (activeCategory === "class10") {
-      return key.startsWith("class10");
-    }
-    if (activeCategory === "english") {
-      return key.startsWith("parts_of_speech");
+    if (!questions || questions.length === 0) {
+      questions = SUBJECT_MOCK_QUESTIONS.Science.easy;
     }
 
-    return true;
-  });
-
-  const startQuiz = (quizId: string) => {
-    setActiveQuizId(quizId);
-    setCurrentQuestionIdx(0);
-    setUserAnswers({});
-    setIsAnswerChecked(false);
-    setShowResult(false);
-  };
-
-  const handleOptionSelect = (optionKey: string) => {
-    if (isAnswerChecked) return;
-    setUserAnswers({
-      ...userAnswers,
-      [currentQuestionIdx]: optionKey,
+    setActiveTest({
+      title: `${selectedSubject} - Custom ${selectedType}`,
+      subject: selectedSubject,
+      level: selectedLevel,
+      questions: questions,
+      timeLimit: 10,
     });
-    setIsAnswerChecked(true);
+    setCurrentQIndex(0);
+    setUserAnswers({});
+    setTimeLeft(10 * 60);
+    setIsTestFinished(false);
+    setFinalScore(0);
   };
 
-  const handleNextQuestion = (totalQuestions: number) => {
-    if (currentQuestionIdx + 1 < totalQuestions) {
-      setCurrentQuestionIdx(prev => prev + 1);
-      setIsAnswerChecked(false);
-    } else {
-      // Calculate final score
-      const quiz = ALL_MCQ_QUIZZES[activeQuizId!];
-      let correctCount = 0;
-      quiz.questions.forEach((q, idx) => {
-        if (userAnswers[idx] === q.answer) {
-          correctCount++;
-        }
-      });
-      const finalScore = Math.round((correctCount / totalQuestions) * 100);
-      saveQuizResult(activeQuizId!, finalScore);
-      setShowResult(true);
+  const startFeaturedTest = (test: FeaturedTest) => {
+    const subjectPool = SUBJECT_MOCK_QUESTIONS[test.subject] || SUBJECT_MOCK_QUESTIONS.Science;
+    let questions = subjectPool[test.level] || subjectPool.easy;
+
+    setActiveTest({
+      title: test.title,
+      subject: test.subject,
+      level: test.level,
+      questions: questions,
+      timeLimit: test.time,
+    });
+    setCurrentQIndex(0);
+    setUserAnswers({});
+    setTimeLeft(test.time * 60);
+    setIsTestFinished(false);
+    setFinalScore(0);
+  };
+
+  const handleSelectOption = (optionIndex: number) => {
+    setUserAnswers({ ...userAnswers, [currentQIndex]: optionIndex });
+  };
+
+  const finishTest = async () => {
+    if (!activeTest) return;
+
+    let score = 0;
+    activeTest.questions.forEach((q, idx) => {
+      if (userAnswers[idx] === q.correctAnswer) {
+        score++;
+      }
+    });
+
+    setFinalScore(score);
+    setIsTestFinished(true);
+
+    try {
+      setSavingResult(true);
+      const { data: sessionData } = await supabase.auth.getSession();
+      const currentUserId = sessionData?.session?.user?.id || user?.id;
+
+      if (currentUserId) {
+        await supabase.from("user_attempts").insert({
+          user_id: currentUserId,
+          subject: activeTest.subject,
+          score: score,
+          total_questions: activeTest.questions.length,
+          difficulty: activeTest.level,
+        });
+      }
+    } catch (err) {
+      console.log("Attempt save notice:", err);
+    } finally {
+      setSavingResult(false);
     }
   };
 
-  const resetQuiz = () => {
-    setActiveQuizId(null);
-    setCurrentQuestionIdx(0);
-    setUserAnswers({});
-    setIsAnswerChecked(false);
-    setShowResult(false);
+  const formatTimer = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
   };
 
-  // ─── 1. QUIZ ACTIVE PLAYING VIEW ───────────────────────────────────────────
-
-  if (activeQuizId) {
-    const quiz = ALL_MCQ_QUIZZES[activeQuizId];
-    const currentQuestion: JSONQuestion = quiz.questions[currentQuestionIdx];
-    const totalQuestions = quiz.questions.length;
-    const progress = ((currentQuestionIdx + 1) / totalQuestions) * 100;
-    const selectedOption = userAnswers[currentQuestionIdx];
-
-    if (!showResult) {
+  // ─── ACTIVE TEST / QUIZ TAKING VIEW ───────────────────────────────────────
+  if (activeTest) {
+    if (isTestFinished) {
+      const percentage = Math.round((finalScore / activeTest.questions.length) * 100);
       return (
         <View style={styles.container}>
-          <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
+          <ScrollView contentContainerStyle={styles.resultContainer} showsVerticalScrollIndicator={false}>
+            <View style={styles.resultCard}>
+              <View style={styles.scoreCircle}>
+                <Text style={styles.scoreCircleText}>{percentage}%</Text>
+              </View>
 
-          {/* Header */}
-          <View style={styles.quizHeader}>
-            <TouchableOpacity onPress={resetQuiz} style={styles.quizBackBtn} activeOpacity={0.8}>
-              <BackIcon size={20} color="#FFFFFF" />
-            </TouchableOpacity>
-            <View style={styles.quizHeaderTitleContainer}>
-              <Text style={styles.quizHeaderSub}>{quiz.subject}</Text>
-              <Text style={styles.quizHeaderTitle} numberOfLines={1}>
-                {getQuizTitle(activeQuizId, quiz)}
+              <Text style={styles.resultTitle}>
+                {percentage >= 80 ? "Outstanding! 🏆" : percentage >= 50 ? "Good Effort! 👍" : "Keep Practicing! 📚"}
               </Text>
-            </View>
-          </View>
-
-          {/* Progress Tracker */}
-          <View style={styles.progressContainer}>
-            <View style={styles.progressTextRow}>
-              <Text style={styles.progressCountText}>
-                Question <Text style={{ color: '#FFFFFF', fontWeight: 'bold' }}>{currentQuestionIdx + 1}</Text> of {totalQuestions}
+              <Text style={styles.resultSubtitle}>
+                You scored <Text style={{ color: Colors.accent, fontWeight: "bold" }}>{finalScore}</Text> out of{" "}
+                <Text style={{ fontWeight: "bold" }}>{activeTest.questions.length}</Text> questions correctly.
               </Text>
-              <Text style={styles.progressPercentText}>{Math.round(progress)}%</Text>
-            </View>
-            <View style={styles.progressBarBg}>
-              <View style={[styles.progressBarFill, { width: `${progress}%` }]} />
-            </View>
-          </View>
 
-          {/* Scrollable Question Box */}
-          <ScrollView
-            style={styles.quizScroll}
-            contentContainerStyle={styles.quizScrollContent}
-            showsVerticalScrollIndicator={false}
-          >
-            {/* Question Card */}
-            <View style={styles.questionCard}>
-              <Text style={styles.questionText}>
-                {currentQuestion.question}
-              </Text>
-            </View>
+              {savingResult && (
+                <View style={styles.savingRow}>
+                  <ActivityIndicator size="small" color={Colors.accent} />
+                  <Text style={styles.savingText}>Saving score to dashboard...</Text>
+                </View>
+              )}
 
-            {/* Options List */}
-            {Object.keys(currentQuestion.options).map((key) => {
-              const optionText = currentQuestion.options[key];
-              const isSelected = selectedOption === key;
-              const isCorrectAnswer = currentQuestion.answer === key;
-              
-              let optionStyle: any = styles.optionBtn;
-              let optionTextStyle: any = styles.optionText;
-              let prefixStyle: any = styles.optionPrefix;
-              let showCorrectCheck = false;
-              let showWrongCross = false;
-
-              if (isAnswerChecked) {
-                if (isCorrectAnswer) {
-                  optionStyle = [styles.optionBtn, styles.optionCorrect];
-                  optionTextStyle = [styles.optionText, styles.optionTextCorrect];
-                  prefixStyle = [styles.optionPrefix, styles.optionPrefixCorrect];
-                  showCorrectCheck = true;
-                } else if (isSelected) {
-                  optionStyle = [styles.optionBtn, styles.optionWrong];
-                  optionTextStyle = [styles.optionText, styles.optionTextWrong];
-                  prefixStyle = [styles.optionPrefix, styles.optionPrefixWrong];
-                  showWrongCross = true;
-                } else {
-                  optionStyle = [styles.optionBtn, styles.optionDisabled];
-                }
-              } else if (isSelected) {
-                optionStyle = [styles.optionBtn, styles.optionSelected];
-                optionTextStyle = [styles.optionText, styles.optionTextSelected];
-                prefixStyle = [styles.optionPrefix, styles.optionPrefixSelected];
-              }
-
-              return (
+              <View style={styles.resultActions}>
                 <TouchableOpacity
-                  key={key}
-                  onPress={() => handleOptionSelect(key)}
-                  disabled={isAnswerChecked}
+                  style={styles.retryBtn}
+                  onPress={() => {
+                    setCurrentQIndex(0);
+                    setUserAnswers({});
+                    setTimeLeft(activeTest.timeLimit * 60);
+                    setIsTestFinished(false);
+                    setFinalScore(0);
+                  }}
                   activeOpacity={0.8}
-                  style={optionStyle}
                 >
-                  <View style={styles.optionContent}>
-                    <View style={prefixStyle}>
-                      <Text style={styles.optionPrefixText}>{key.toUpperCase()}</Text>
-                    </View>
-                    <Text style={optionTextStyle}>{optionText}</Text>
-                  </View>
-                  {showCorrectCheck && <CheckIcon size={16} color="#3DBE7A" />}
-                  {showWrongCross && <XIcon size={16} color="#FF6B6B" />}
+                  <Text style={styles.retryBtnText}>Retry Test</Text>
                 </TouchableOpacity>
-              );
-            })}
 
-            {/* Next Question Navigation */}
-            {isAnswerChecked && (
-              <TouchableOpacity
-                onPress={() => handleNextQuestion(totalQuestions)}
-                activeOpacity={0.8}
-                style={styles.nextBtn}
-              >
-                <Text style={styles.nextBtnText}>
-                  {currentQuestionIdx + 1 === totalQuestions ? "Submit & View Results" : "Next Question →"}
-                </Text>
-              </TouchableOpacity>
-            )}
-            
-            <View style={{ height: 80 }} />
-          </ScrollView>
-        </View>
-      );
-    } else {
-      // ─── 2. DETAILED SUMMARY RESULT VIEW ─────────────────────────────────────
-      
-      let correctCount = 0;
-      quiz.questions.forEach((q, idx) => {
-        if (userAnswers[idx] === q.answer) {
-          correctCount++;
-        }
-      });
-      const scorePercent = Math.round((correctCount / totalQuestions) * 100);
-      const isPass = scorePercent >= 50;
-
-      return (
-        <View style={styles.container}>
-          <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
-
-          {/* Header */}
-          <View style={[styles.quizHeader, { backgroundColor: isPass ? '#3DBE7A' : '#7C5CFF' }]}>
-            <TouchableOpacity onPress={resetQuiz} style={styles.quizBackBtn} activeOpacity={0.8}>
-              <BackIcon size={20} color="#FFFFFF" />
-            </TouchableOpacity>
-            <View style={styles.quizHeaderTitleContainer}>
-              <Text style={[styles.quizHeaderSub, { color: 'rgba(255,255,255,0.8)' }]}>Quiz Result</Text>
-              <Text style={styles.quizHeaderTitle} numberOfLines={1}>
-                {getQuizTitle(activeQuizId, quiz)}
-              </Text>
-            </View>
-          </View>
-
-          <ScrollView
-            style={styles.quizScroll}
-            contentContainerStyle={styles.resultScrollContent}
-            showsVerticalScrollIndicator={false}
-          >
-            {/* Score Ring Card */}
-            <View style={styles.resultTrophyCard}>
-              <View style={styles.trophyWrapper}>
-                <TrophyIcon size={50} color={isPass ? '#F59E0B' : '#E2E8F0'} />
-              </View>
-              <Text style={styles.resultGreeting}>
-                {isPass ? "🎉 Congratulations!" : "📚 Keep Learning!"}
-              </Text>
-              <Text style={styles.resultSummaryText}>
-                You answered {correctCount} out of {totalQuestions} questions correctly.
-              </Text>
-              
-              {/* Giant Percent Display */}
-              <View style={[styles.percentBadge, { borderColor: isPass ? '#3DBE7A' : '#7C5CFF' }]}>
-                <Text style={[styles.percentText, { color: isPass ? '#3DBE7A' : '#7C5CFF' }]}>
-                  {scorePercent}%
-                </Text>
+                <TouchableOpacity
+                  style={styles.leaveBtn}
+                  onPress={() => setActiveTest(null)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.leaveBtnText}>Back to Tests</Text>
+                </TouchableOpacity>
               </View>
             </View>
 
-            {/* Buttons Row */}
-            <View style={styles.resultButtonsRow}>
-              <TouchableOpacity onPress={() => startQuiz(activeQuizId)} style={styles.retryBtn} activeOpacity={0.8}>
-                <Text style={styles.retryBtnText}>Retry Quiz</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={resetQuiz} style={styles.finishBtn} activeOpacity={0.8}>
-                <Text style={styles.finishBtnText}>Go Back</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Question by Question Review */}
-            <Text style={styles.reviewHeading}>📝 Detailed Quiz Review</Text>
-
-            {quiz.questions.map((q, idx) => {
-              const uAns = userAnswers[idx];
-              const cAns = q.answer;
-              const isCorrect = uAns === cAns;
-
+            {/* Answer Explanations Review */}
+            <Text style={styles.reviewHeading}>Question by Question Review:</Text>
+            {activeTest.questions.map((q, qIdx) => {
+              const selected = userAnswers[qIdx];
+              const isCorrect = selected === q.correctAnswer;
               return (
-                <View key={idx} style={[styles.reviewCard, isCorrect ? styles.reviewCorrectBorder : styles.reviewWrongBorder]}>
-                  {/* Question header */}
+                <View
+                  key={qIdx}
+                  style={[styles.reviewCard, isCorrect ? styles.correctCard : styles.incorrectCard]}
+                >
                   <View style={styles.reviewHeaderRow}>
-                    <View style={[styles.reviewNumberBadge, { backgroundColor: isCorrect ? 'rgba(61,190,122,0.15)' : 'rgba(255,107,107,0.15)' }]}>
-                      <Text style={[styles.reviewNumberText, { color: isCorrect ? '#3DBE7A' : '#FF6B6B' }]}>
-                        Q{idx + 1}
-                      </Text>
-                    </View>
-                    <Text style={[styles.reviewStatusText, { color: isCorrect ? '#3DBE7A' : '#FF6B6B' }]}>
-                      {isCorrect ? "Correct" : "Incorrect"}
+                    {isCorrect ? <CheckIcon size={14} color="#059669" /> : <XIcon size={14} color="#DC2626" />}
+                    <Text style={styles.qNumText}>
+                      Q{qIdx + 1} of {activeTest.questions.length}
                     </Text>
                   </View>
+                  <Text style={styles.reviewQText}>{q.questionText}</Text>
 
-                  <Text style={styles.reviewQuestionText}>{q.question}</Text>
-
-                  {/* Options review */}
-                  <View style={styles.reviewOptionsList}>
-                    {Object.keys(q.options).map((key) => {
-                      const optText = q.options[key];
-                      const isCorrectOpt = cAns === key;
-                      const isUserSelectedOpt = uAns === key;
-
-                      let optReviewStyle: any = styles.reviewOptionRow;
-                      let optLabelStyle: any = styles.reviewOptionLabel;
-                      let optTextStyle: any = styles.reviewOptionText;
-                      let marker = null;
-
-                      if (isCorrectOpt) {
-                        optReviewStyle = [styles.reviewOptionRow, styles.reviewOptionCorrectBg];
-                        optLabelStyle = [styles.reviewOptionLabel, styles.reviewOptionLabelCorrect];
-                        optTextStyle = [styles.reviewOptionText, styles.reviewOptionTextCorrect];
-                        marker = <CheckIcon size={12} color="#3DBE7A" />;
-                      } else if (isUserSelectedOpt) {
-                        optReviewStyle = [styles.reviewOptionRow, styles.reviewOptionWrongBg];
-                        optLabelStyle = [styles.reviewOptionLabel, styles.reviewOptionLabelWrong];
-                        optTextStyle = [styles.reviewOptionText, styles.reviewOptionTextWrong];
-                        marker = <XIcon size={12} color="#FF6B6B" />;
-                      }
+                  <View style={{ marginTop: 6, gap: 4 }}>
+                    {q.options.map((opt, optIdx) => {
+                      const isOptionCorrect = optIdx === q.correctAnswer;
+                      const isOptionSelected = optIdx === selected;
 
                       return (
-                        <View key={key} style={optReviewStyle}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                            <View style={optLabelStyle}>
-                              <Text style={styles.reviewOptionLetter}>{key.toUpperCase()}</Text>
-                            </View>
-                            <Text style={optTextStyle}>{optText}</Text>
-                          </View>
-                          {marker}
+                        <View
+                          key={optIdx}
+                          style={[
+                            styles.reviewOptionBox,
+                            isOptionCorrect && styles.reviewCorrectOption,
+                            isOptionSelected && !isOptionCorrect && styles.reviewWrongOption,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.reviewOptionText,
+                              isOptionCorrect && { color: "#065F46", fontWeight: "bold" },
+                              isOptionSelected && !isOptionCorrect && { color: "#991B1B", fontWeight: "bold" },
+                            ]}
+                          >
+                            {opt} {isOptionCorrect ? "✓ (Correct)" : isOptionSelected ? "✗ (Your Answer)" : ""}
+                          </Text>
                         </View>
                       );
                     })}
                   </View>
+
+                  {q.explanation && (
+                    <Text style={styles.explanationText}>
+                      <Text style={{ fontWeight: "bold" }}>Explanation: </Text>
+                      {q.explanation}
+                    </Text>
+                  )}
                 </View>
               );
             })}
-
-            <View style={{ height: 80 }} />
+            <View style={{ height: 110 }} />
           </ScrollView>
         </View>
       );
     }
-  }
 
-  // ─── 3. DEFAULT QUIZZES LIST SELECTION VIEW ──────────────────────────────────
+    const currentQ = activeTest.questions[currentQIndex];
+    const isAnswered = userAnswers[currentQIndex] !== undefined;
 
-  return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
-
-      {/* Main Premium Curved Header (Consistent with HomeScreen) */}
-      <View style={styles.header}>
-        <View style={styles.headerTop}>
-          <View style={styles.headerLeft}>
-            <Text style={styles.headerSub}>Test Your Knowledge</Text>
-            <Text style={styles.headerTitle}>Academic Quizzes</Text>
+    return (
+      <View style={styles.container}>
+        {/* Test Header */}
+        <View style={styles.testHeader}>
+          <TouchableOpacity onPress={() => setActiveTest(null)} style={styles.headerBackBtn} activeOpacity={0.7}>
+            <BackIcon size={16} color={Colors.textDark} />
+          </TouchableOpacity>
+          <View style={{ flex: 1, paddingHorizontal: 8 }}>
+            <Text style={styles.testHeaderTitle} numberOfLines={1}>
+              {activeTest.title}
+            </Text>
+            <Text style={styles.testHeaderSub}>
+              Question {currentQIndex + 1} of {activeTest.questions.length}
+            </Text>
           </View>
-          <View style={styles.trophyIconBadge}>
-            <TrophyIcon size={24} color="#FFFFFF" />
+          <View style={styles.timerBadge}>
+            <ClockIcon size={12} color="#EF4444" />
+            <Text style={styles.timerText}>{formatTimer(timeLeft)}</Text>
           </View>
         </View>
-      </View>
 
-      {/* Main Body */}
-      <Animated.ScrollView
-        showsVerticalScrollIndicator={false}
-        style={{ flex: 1, opacity: fadeAnim }}
-        contentContainerStyle={[styles.listScrollContent, { transform: [{ translateY: slideAnim }] }]}
-      >
-        {/* Search Bar */}
-        <View style={styles.searchBarContainer}>
-          <SearchIcon size={18} color="#64748B" />
-          <TextInput
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder="Search classes, subjects or topics..."
-            placeholderTextColor="#64748B"
-            style={styles.searchInput}
+        {/* Progress Bar */}
+        <View style={styles.progressBar}>
+          <View
+            style={[
+              styles.progressFill,
+              { width: `${((currentQIndex + 1) / activeTest.questions.length) * 100}%` },
+            ]}
           />
         </View>
 
-        {/* Categories Horizontal Scroll */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsRow}>
-          {[
-            { id: "all", label: "All Tests" },
-            { id: "middle", label: "Class 6-8" },
-            { id: "class9", label: "Class 9" },
-            { id: "class10", label: "Class 10" },
-            { id: "english", label: "English" },
-          ].map((cat) => {
-            const isSelected = activeCategory === cat.id;
-            return (
-              <TouchableOpacity
-                key={cat.id}
-                onPress={() => setActiveCategory(cat.id as any)}
-                activeOpacity={0.8}
-                style={[styles.chip, isSelected && styles.chipActive]}
-              >
-                <Text style={[styles.chipText, isSelected && styles.chipTextActive]}>
-                  {cat.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+        <ScrollView contentContainerStyle={styles.questionContainer} showsVerticalScrollIndicator={false}>
+          <View style={styles.questionCard}>
+            <View style={styles.qNumTag}>
+              <Text style={styles.qNumTagText}>Question {currentQIndex + 1}</Text>
+            </View>
 
-        {/* Results Info */}
-        <Text style={styles.resultsCountText}>
-          {filteredQuizKeys.length} test modules available
-        </Text>
+            <Text style={styles.questionText}>{currentQ.questionText}</Text>
 
-        {/* Quiz Cards */}
-        {filteredQuizKeys.map((key) => {
-          const quiz = ALL_MCQ_QUIZZES[key];
-          const color = getSubjectColor(quiz.subject);
-          const history = quizHistory[key];
-          const hasScore = history !== undefined;
+            <View style={styles.optionsList}>
+              {currentQ.options.map((opt, optIdx) => {
+                const isSelected = userAnswers[currentQIndex] === optIdx;
 
-          return (
-            <TouchableOpacity
-              key={key}
-              onPress={() => startQuiz(key)}
-              activeOpacity={0.9}
-              style={styles.quizCard}
-            >
-              <View style={[styles.iconWrapper, { backgroundColor: color + "15", borderColor: color + "30" }]}>
-                <QuizIcon size={24} color={color} />
-              </View>
-
-              <View style={styles.quizCardInfo}>
-                <View style={styles.quizCardMetaRow}>
-                  <Text style={[styles.subjectBadge, { color: color }]}>
-                    {quiz.subject}
-                  </Text>
-                  {hasScore && (
-                    <View style={[styles.scoreBadge, { backgroundColor: history.score >= 50 ? '#3DBE7A15' : '#7C5CFF15', borderColor: history.score >= 50 ? '#3DBE7A35' : '#7C5CFF35' }]}>
-                      <Text style={[styles.scoreBadgeText, { color: history.score >= 50 ? '#3DBE7A' : '#A892FF' }]}>
-                        Score: {history.score}%
+                return (
+                  <TouchableOpacity
+                    key={optIdx}
+                    style={[styles.optionButton, isSelected && styles.optionButtonSelected]}
+                    onPress={() => handleSelectOption(optIdx)}
+                    activeOpacity={0.8}
+                  >
+                    <View
+                      style={[
+                        styles.optionLetterCircle,
+                        isSelected && styles.optionLetterCircleSelected,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.optionLetterText,
+                          isSelected && { color: "#FFFFFF" },
+                        ]}
+                      >
+                        {String.fromCharCode(65 + optIdx)}
                       </Text>
                     </View>
-                  )}
+                    <Text style={[styles.optionText, isSelected && styles.optionTextSelected]}>
+                      {opt}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        </ScrollView>
+
+        {/* Bottom Navigation Controls */}
+        <View style={styles.bottomNavRow}>
+          <TouchableOpacity
+            style={[styles.navBtn, currentQIndex === 0 && styles.navBtnDisabled]}
+            disabled={currentQIndex === 0}
+            onPress={() => setCurrentQIndex((prev) => prev - 1)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.navBtnText}>Previous</Text>
+          </TouchableOpacity>
+
+          {currentQIndex < activeTest.questions.length - 1 ? (
+            <TouchableOpacity
+              style={styles.navNextBtn}
+              onPress={() => setCurrentQIndex((prev) => prev + 1)}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.navNextBtnText}>Next</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={[styles.navFinishBtn, !isAnswered && { opacity: 0.8 }]}
+              onPress={finishTest}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.navFinishBtnText}>Finish Test</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    );
+  }
+
+  // ─── TESTS GENERATOR & FEATURED TESTS LIST VIEW ───────────────────────────
+  return (
+    <View style={styles.container}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.headerTopRow}>
+            {onBack && (
+              <TouchableOpacity onPress={onBack} style={styles.backButton} activeOpacity={0.7}>
+                <BackIcon size={18} color={Colors.textDark} />
+              </TouchableOpacity>
+            )}
+            <View style={styles.badgeRow}>
+              <SparklesIcon size={13} color="#F59E0B" />
+              <Text style={styles.badgeText}>EXAM GENERATOR</Text>
+            </View>
+          </View>
+
+          <Text style={styles.title}>Practice Tests & Mock Exams</Text>
+          <Text style={styles.sindhiTitle}>
+            سنڌي شاگردن لاءِ آنلائن ايم سي ڪيوز ٽيسٽ ۽ امتحانن جي مشق
+          </Text>
+          <Text style={styles.subtitle}>
+            Practice STBB Science, Physics, Chemistry & STS screening tests with instant evaluation and detailed solutions.
+          </Text>
+        </View>
+
+        {/* Custom Test Generator Card */}
+        <View style={styles.generatorCard}>
+          <Text style={styles.generatorTitle}>Generate Custom Mock Test</Text>
+
+          {/* 1. Subject selector */}
+          <Text style={styles.filterLabel}>1. Choose Subject</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.pillsRow}
+          >
+            {subjects.map((sub) => {
+              const isActive = selectedSubject === sub;
+              return (
+                <TouchableOpacity
+                  key={sub}
+                  style={[styles.filterPill, isActive && styles.filterPillActive]}
+                  onPress={() => setSelectedSubject(sub)}
+                  activeOpacity={0.75}
+                >
+                  <Text
+                    style={[styles.filterPillText, isActive && styles.filterPillTextActive]}
+                  >
+                    {sub}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+
+          {/* 2. Difficulty Level */}
+          <Text style={styles.filterLabel}>2. Difficulty Level</Text>
+          <View style={styles.levelsRow}>
+            {levels.map((lvl) => {
+              const isActive = selectedLevel === lvl;
+              return (
+                <TouchableOpacity
+                  key={lvl}
+                  style={[styles.levelBtn, isActive && styles.levelBtnActive]}
+                  onPress={() => setSelectedLevel(lvl)}
+                  activeOpacity={0.75}
+                >
+                  <Text style={[styles.levelBtnText, isActive && styles.levelBtnTextActive]}>
+                    {lvl.toUpperCase()}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {/* 3. Test Type */}
+          <Text style={styles.filterLabel}>3. Assessment Type</Text>
+          <View style={styles.levelsRow}>
+            {types.map((t) => {
+              const isActive = selectedType === t;
+              return (
+                <TouchableOpacity
+                  key={t}
+                  style={[styles.levelBtn, isActive && styles.levelBtnActive]}
+                  onPress={() => setSelectedType(t)}
+                  activeOpacity={0.75}
+                >
+                  <Text style={[styles.levelBtnText, isActive && styles.levelBtnTextActive]}>
+                    {t}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <TouchableOpacity
+            style={styles.startCustomBtn}
+            activeOpacity={0.88}
+            onPress={startCustomTest}
+          >
+            <TestsIcon size={16} color="#FFFFFF" />
+            <Text style={styles.startCustomBtnText}>Start Generated Test</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Featured Quick-Start Tests */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Featured Science & Math Tests</Text>
+          <Text style={styles.sectionSindhiTitle}>سنڌ بورڊ ۽ آءِ بي اي سکر جي اهم ترين ٽيسٽون</Text>
+        </View>
+
+        <View style={styles.testsGrid}>
+          {FEATURED_TESTS.map((test) => (
+            <View key={test.id} style={styles.testCard}>
+              <View style={styles.testCardHeader}>
+                <View style={styles.typeBadge}>
+                  <Text style={styles.typeBadgeText}>{test.type}</Text>
                 </View>
-
-                <Text style={styles.quizCardTitle}>
-                  {getQuizTitle(key, quiz)}
-                </Text>
-
-                <View style={styles.cardDetailsRow}>
-                  <ClockIcon size={12} color="#64748B" />
-                  <Text style={styles.detailsText}>{quiz.total_questions} MCQs</Text>
-                  
-                  {quiz.board && (
-                    <>
-                      <Text style={styles.detailsDot}>•</Text>
-                      <Text style={styles.detailsText} numberOfLines={1}>{quiz.board}</Text>
-                    </>
-                  )}
+                <View style={styles.subjectBadge}>
+                  <Text style={styles.subjectBadgeText}>{test.subject}</Text>
                 </View>
               </View>
-            </TouchableOpacity>
-          );
-        })}
 
-        {/* Empty State */}
-        {filteredQuizKeys.length === 0 && (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No quizzes found</Text>
-            <Text style={styles.emptySub}>Try searching for a different subject or class</Text>
-          </View>
-        )}
+              <Text style={styles.cardTestTitle}>{test.title}</Text>
 
-        <View style={{ height: 120 }} />
-      </Animated.ScrollView>
+              <View style={styles.cardMetaRow}>
+                <View style={styles.cardMetaItem}>
+                  <FileQuestionIcon size={13} color={Colors.accent} />
+                  <Text style={styles.cardMetaText}>{test.mcqs} MCQs</Text>
+                </View>
+                <View style={styles.cardMetaItem}>
+                  <ClockIcon size={13} color="#F59E0B" />
+                  <Text style={styles.cardMetaText}>{test.time} Min</Text>
+                </View>
+              </View>
+
+              <View style={styles.diffBarContainer}>
+                <View style={styles.diffHeader}>
+                  <Text style={styles.diffLabel}>DIFFICULTY</Text>
+                  <Text style={styles.diffValue}>{test.difficultyPercentage}%</Text>
+                </View>
+                <View style={styles.diffTrack}>
+                  <View
+                    style={[styles.diffFill, { width: `${test.difficultyPercentage}%` }]}
+                  />
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={styles.takeTestBtn}
+                activeOpacity={0.85}
+                onPress={() => startFeaturedTest(test)}
+              >
+                <Text style={styles.takeTestBtnText}>Start Test Now</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+        </View>
+
+        <View style={{ height: 110 }} />
+      </ScrollView>
     </View>
   );
 };
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0F172A",
+    backgroundColor: Colors.background,
   },
-  // Main Selection Header
-  header: {
-    backgroundColor: "#7C5CFF",
-    paddingTop: Platform.OS === "ios" ? 50 : 30,
-    paddingBottom: 24,
-    paddingHorizontal: 20,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-    shadowColor: "#7C5CFF",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    elevation: 10,
-  },
-  headerTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  headerLeft: {
-    flex: 1,
-  },
-  headerSub: {
-    color: "rgba(255,255,255,0.85)",
-    fontSize: 13,
-    fontWeight: "600",
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
-  },
-  headerTitle: {
-    color: "#FFFFFF",
-    fontSize: 24,
-    fontWeight: "800",
-    marginTop: 2,
-    letterSpacing: 0.3,
-  },
-  trophyIconBadge: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.25)",
-  },
-  listScrollContent: {
-    padding: 16,
-  },
-  // Search Bar
-  searchBarContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#1E293B",
-    borderRadius: 16,
+  scrollContent: {
     paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: "#334155",
-    marginBottom: 16,
+    paddingTop: 8,
   },
-  searchInput: {
-    flex: 1,
-    marginLeft: 10,
-    color: "#F1F5F9",
-    fontSize: 14,
-    padding: 0,
-  },
-  // Chips
-  chipsRow: {
-    flexDirection: "row",
-    marginBottom: 16,
-  },
-  chip: {
-    backgroundColor: "#1E293B",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: "#334155",
-  },
-  chipActive: {
-    backgroundColor: "#7C5CFF",
-    borderColor: "#7C5CFF",
-  },
-  chipText: {
-    color: "#94A3B8",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  chipTextActive: {
-    color: "#FFFFFF",
-  },
-  resultsCountText: {
-    color: "#64748B",
-    fontSize: 12,
-    fontWeight: "600",
+  header: {
     marginBottom: 12,
   },
-  // Quiz Cards List
-  quizCard: {
-    flexDirection: "row",
-    backgroundColor: "#1E293B",
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "#334155",
-    alignItems: "center",
-  },
-  iconWrapper: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 16,
-    borderWidth: 1,
-  },
-  quizCardInfo: {
-    flex: 1,
-  },
-  quizCardMetaRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  subjectBadge: {
-    fontSize: 10,
-    fontWeight: "800",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  scoreBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  scoreBadgeText: {
-    fontSize: 9,
-    fontWeight: "800",
-  },
-  quizCardTitle: {
-    color: "#F1F5F9",
-    fontSize: 15,
-    fontWeight: "800",
-    marginTop: 4,
-    marginBottom: 6,
-  },
-  cardDetailsRow: {
+  headerTopRow: {
     flexDirection: "row",
     alignItems: "center",
-  },
-  detailsText: {
-    color: "#64748B",
-    fontSize: 11,
-    fontWeight: "600",
-    marginLeft: 5,
-  },
-  detailsDot: {
-    color: "#475569",
-    marginHorizontal: 6,
-  },
-  // Empty State
-  emptyContainer: {
-    alignItems: "center",
-    paddingVertical: 50,
-  },
-  emptyText: {
-    color: "#64748B",
-    fontSize: 15,
-    fontWeight: "700",
-  },
-  emptySub: {
-    color: "#475569",
-    fontSize: 12,
-    marginTop: 4,
-  },
-
-  // ─── Quiz Active Play Styles ───────────────────────────────────────────────
-  
-  quizHeader: {
-    backgroundColor: "#7C5CFF",
-    paddingTop: Platform.OS === "ios" ? 50 : 25,
-    paddingBottom: 16,
-    paddingHorizontal: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-  },
-  quizBackBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-  },
-  quizHeaderTitleContainer: {
-    flex: 1,
-  },
-  quizHeaderSub: {
-    color: "rgba(255,255,255,0.85)",
-    fontSize: 9,
-    fontWeight: "800",
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
-  },
-  quizHeaderTitle: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "800",
-    marginTop: 1,
-  },
-  progressContainer: {
-    padding: 16,
-    paddingBottom: 4,
-  },
-  progressTextRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 6,
-  },
-  progressCountText: {
-    color: "#94A3B8",
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  progressPercentText: {
-    color: "#7C5CFF",
-    fontSize: 12,
-    fontWeight: "800",
-  },
-  progressBarBg: {
-    height: 6,
-    backgroundColor: "#1E293B",
-    borderRadius: 3,
-    overflow: "hidden",
-  },
-  progressBarFill: {
-    height: "100%",
-    backgroundColor: "#7C5CFF",
-    borderRadius: 3,
-  },
-  quizScroll: {
-    flex: 1,
-  },
-  quizScrollContent: {
-    padding: 16,
-  },
-  questionCard: {
-    backgroundColor: "#1E293B",
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: "#334155",
-  },
-  questionText: {
-    color: "#F1F5F9",
-    fontSize: 16,
-    fontWeight: "700",
-    lineHeight: 24,
-  },
-  // Option Buttons
-  optionBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "#1E293B",
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 12,
-    borderWidth: 1.5,
-    borderColor: "#334155",
-  },
-  optionContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-    marginRight: 10,
-  },
-  optionPrefix: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "#334155",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-  },
-  optionPrefixText: {
-    color: "#F1F5F9",
-    fontSize: 12,
-    fontWeight: "800",
-  },
-  optionText: {
-    color: "#E2E8F0",
-    fontSize: 14,
-    fontWeight: "600",
-    flex: 1,
-  },
-  // Selected option state
-  optionSelected: {
-    borderColor: "#7C5CFF",
-    backgroundColor: "rgba(124,92,255,0.08)",
-  },
-  optionPrefixSelected: {
-    backgroundColor: "#7C5CFF",
-  },
-  optionTextSelected: {
-    color: "#A892FF",
-  },
-  // Correct option state
-  optionCorrect: {
-    borderColor: "#3DBE7A",
-    backgroundColor: "rgba(61,190,122,0.08)",
-  },
-  optionPrefixCorrect: {
-    backgroundColor: "#3DBE7A",
-  },
-  optionTextCorrect: {
-    color: "#3DBE7A",
-  },
-  // Wrong option state
-  optionWrong: {
-    borderColor: "#FF6B6B",
-    backgroundColor: "rgba(255,107,107,0.08)",
-  },
-  optionPrefixWrong: {
-    backgroundColor: "#FF6B6B",
-  },
-  optionTextWrong: {
-    color: "#FF6B6B",
-  },
-  // Disabled options state
-  optionDisabled: {
-    opacity: 0.5,
-  },
-  nextBtn: {
-    backgroundColor: "#7C5CFF",
-    paddingVertical: 14,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 20,
-    shadowColor: "#7C5CFF",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  nextBtnText: {
-    color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "800",
-  },
-
-  // ─── Result Styles ─────────────────────────────────────────────────────────
-
-  resultScrollContent: {
-    padding: 16,
-  },
-  resultTrophyCard: {
-    backgroundColor: "#1E293B",
-    borderRadius: 24,
-    padding: 24,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#334155",
-    marginBottom: 20,
-  },
-  trophyWrapper: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: "rgba(245,158,11,0.1)",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
-  },
-  resultGreeting: {
-    color: "#FFFFFF",
-    fontSize: 20,
-    fontWeight: "800",
+    gap: 8,
     marginBottom: 8,
   },
-  resultSummaryText: {
-    color: "#94A3B8",
-    fontSize: 13,
-    textAlign: "center",
-    lineHeight: 18,
-    marginBottom: 18,
-    paddingHorizontal: 10,
-  },
-  percentBadge: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 6,
+  backButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 8,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
   },
-  percentText: {
-    fontSize: 26,
+  badgeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFBEB",
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#FEF3C7",
+    gap: 4,
+  },
+  badgeText: {
+    fontSize: 9,
+    fontWeight: "800",
+    color: "#B45309",
+    letterSpacing: 0.2,
+  },
+  title: {
+    fontSize: 18,
     fontWeight: "900",
+    color: Colors.textDark,
+    letterSpacing: -0.2,
+    marginBottom: 2,
   },
-  resultButtonsRow: {
+  sindhiTitle: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: Colors.accent,
+    marginBottom: 6,
+    lineHeight: 18,
+  },
+  subtitle: {
+    fontSize: 11,
+    color: Colors.textLight,
+    lineHeight: 16,
+  },
+  generatorCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+    marginBottom: 16,
+  },
+  generatorTitle: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: Colors.textDark,
+    marginBottom: 10,
+  },
+  filterLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: Colors.textLight,
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+    marginBottom: 6,
+    marginTop: 4,
+  },
+  pillsRow: {
+    gap: 6,
+    marginBottom: 10,
+  },
+  filterPill: {
+    backgroundColor: "#F8FAFC",
+    paddingHorizontal: 11,
+    paddingVertical: 5,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  filterPillActive: {
+    backgroundColor: Colors.accent,
+    borderColor: Colors.accent,
+  },
+  filterPillText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: Colors.textDark,
+  },
+  filterPillTextActive: {
+    color: "#FFFFFF",
+  },
+  levelsRow: {
+    flexDirection: "row",
+    gap: 6,
+    marginBottom: 10,
+  },
+  levelBtn: {
+    flex: 1,
+    backgroundColor: "#F8FAFC",
+    paddingVertical: 7,
+    borderRadius: 10,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  levelBtnActive: {
+    backgroundColor: Colors.accent,
+    borderColor: Colors.accent,
+  },
+  levelBtnText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: Colors.textDark,
+  },
+  levelBtnTextActive: {
+    color: "#FFFFFF",
+  },
+  startCustomBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.accent,
+    paddingVertical: 10,
+    borderRadius: 12,
+    gap: 6,
+    marginTop: 6,
+  },
+  startCustomBtnText: {
+    color: "#FFFFFF",
+    fontWeight: "800",
+    fontSize: 12,
+  },
+  sectionHeader: {
+    marginBottom: 10,
+  },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: Colors.textDark,
+  },
+  sectionSindhiTitle: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: Colors.accent,
+    marginTop: 1,
+  },
+  testsGrid: {
+    gap: 10,
+  },
+  testCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 5,
+    elevation: 2,
+  },
+  testCardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 24,
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  typeBadge: {
+    backgroundColor: Colors.accentLight,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  typeBadgeText: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: Colors.accent,
+  },
+  subjectBadge: {
+    backgroundColor: "#EFF6FF",
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  subjectBadgeText: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: "#2563EB",
+  },
+  cardTestTitle: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: Colors.textDark,
+    lineHeight: 17,
+    marginBottom: 8,
+  },
+  cardMetaRow: {
+    flexDirection: "row",
     gap: 12,
+    marginBottom: 8,
+  },
+  cardMetaItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  cardMetaText: {
+    fontSize: 10,
+    color: Colors.textLight,
+    fontWeight: "600",
+  },
+  diffBarContainer: {
+    marginBottom: 10,
+  },
+  diffHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 3,
+  },
+  diffLabel: {
+    fontSize: 8,
+    fontWeight: "800",
+    color: Colors.textMuted,
+  },
+  diffValue: {
+    fontSize: 8,
+    fontWeight: "800",
+    color: Colors.accent,
+  },
+  diffTrack: {
+    height: 4,
+    backgroundColor: "#F1F5F9",
+    borderRadius: 2,
+    overflow: "hidden",
+  },
+  diffFill: {
+    height: "100%",
+    backgroundColor: Colors.accent,
+    borderRadius: 2,
+  },
+  takeTestBtn: {
+    backgroundColor: "#FAF7F2",
+    borderWidth: 1,
+    borderColor: "rgba(124, 92, 255, 0.3)",
+    paddingVertical: 8,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  takeTestBtnText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: Colors.accent,
+  },
+  // Active Test Styles
+  testHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.cardBorder,
+  },
+  headerBackBtn: {
+    padding: 6,
+    borderRadius: 16,
+    backgroundColor: "#F8FAFC",
+  },
+  testHeaderTitle: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: Colors.textDark,
+  },
+  testHeaderSub: {
+    fontSize: 10,
+    color: Colors.textLight,
+  },
+  timerBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FEF2F2",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: "#FEE2E2",
+  },
+  timerText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#EF4444",
+  },
+  progressBar: {
+    height: 3,
+    backgroundColor: "#F1F5F9",
+  },
+  progressFill: {
+    height: "100%",
+    backgroundColor: Colors.accent,
+  },
+  questionContainer: {
+    padding: 14,
+  },
+  questionCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  qNumTag: {
+    alignSelf: "flex-start",
+    backgroundColor: Colors.accentLight,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginBottom: 8,
+  },
+  qNumTagText: {
+    fontSize: 9,
+    fontWeight: "800",
+    color: Colors.accent,
+  },
+  questionText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: Colors.textDark,
+    lineHeight: 20,
+    marginBottom: 14,
+  },
+  optionsList: {
+    gap: 8,
+  },
+  optionButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: 12,
+    padding: 10,
+    gap: 10,
+  },
+  optionButtonSelected: {
+    backgroundColor: Colors.accentLight,
+    borderColor: Colors.accent,
+  },
+  optionLetterCircle: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: "#E2E8F0",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  optionLetterCircleSelected: {
+    backgroundColor: Colors.accent,
+  },
+  optionLetterText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: Colors.textDark,
+  },
+  optionText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: Colors.textDark,
+    flex: 1,
+    lineHeight: 16,
+  },
+  optionTextSelected: {
+    color: Colors.accent,
+    fontWeight: "700",
+  },
+  bottomNavRow: {
+    flexDirection: "row",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: "#FFFFFF",
+    borderTopWidth: 1,
+    borderTopColor: Colors.cardBorder,
+    gap: 10,
+  },
+  navBtn: {
+    flex: 1,
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  navBtnDisabled: {
+    opacity: 0.4,
+  },
+  navBtnText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: Colors.textDark,
+  },
+  navNextBtn: {
+    flex: 1,
+    backgroundColor: Colors.accent,
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  navNextBtnText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#FFFFFF",
+  },
+  navFinishBtn: {
+    flex: 1,
+    backgroundColor: "#10B981",
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  navFinishBtnText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#FFFFFF",
+  },
+  // Result View
+  resultContainer: {
+    padding: 14,
+  },
+  resultCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 16,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    marginBottom: 14,
+  },
+  scoreCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: Colors.accentLight,
+    borderWidth: 3,
+    borderColor: Colors.accent,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 10,
+  },
+  scoreCircleText: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: Colors.accent,
+  },
+  resultTitle: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: Colors.textDark,
+    marginBottom: 3,
+  },
+  resultSubtitle: {
+    fontSize: 12,
+    color: Colors.textLight,
+    textAlign: "center",
+    marginBottom: 12,
+  },
+  savingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 10,
+  },
+  savingText: {
+    fontSize: 11,
+    color: Colors.textLight,
+  },
+  resultActions: {
+    flexDirection: "row",
+    gap: 8,
+    width: "100%",
   },
   retryBtn: {
     flex: 1,
-    backgroundColor: "#1E293B",
-    borderWidth: 1.5,
-    borderColor: "#334155",
-    paddingVertical: 14,
-    borderRadius: 14,
+    backgroundColor: Colors.accent,
+    paddingVertical: 9,
+    borderRadius: 10,
     alignItems: "center",
   },
   retryBtnText: {
-    color: "#F1F5F9",
-    fontSize: 14,
+    color: "#FFFFFF",
     fontWeight: "800",
+    fontSize: 12,
   },
-  finishBtn: {
+  leaveBtn: {
     flex: 1,
-    backgroundColor: "#7C5CFF",
-    paddingVertical: 14,
-    borderRadius: 14,
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    paddingVertical: 9,
+    borderRadius: 10,
     alignItems: "center",
   },
-  finishBtnText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "800",
+  leaveBtnText: {
+    color: Colors.textDark,
+    fontWeight: "700",
+    fontSize: 12,
   },
   reviewHeading: {
-    color: "#F1F5F9",
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: "800",
-    marginBottom: 14,
+    color: Colors.textDark,
+    marginBottom: 8,
   },
-  // Detailed review card styles
   reviewCard: {
-    backgroundColor: "#1E293B",
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1.5,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    marginBottom: 10,
   },
-  reviewCorrectBorder: {
-    borderColor: "rgba(61,190,122,0.3)",
+  correctCard: {
+    borderColor: "#A7F3D0",
   },
-  reviewWrongBorder: {
-    borderColor: "rgba(255,107,107,0.3)",
+  incorrectCard: {
+    borderColor: "#FECACA",
   },
   reviewHeaderRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 8,
+    gap: 6,
+    marginBottom: 4,
   },
-  reviewNumberBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  reviewNumberText: {
-    fontSize: 11,
-    fontWeight: "800",
-  },
-  reviewStatusText: {
-    fontSize: 11,
-    fontWeight: "700",
-  },
-  reviewQuestionText: {
-    color: "#F1F5F9",
-    fontSize: 14,
-    fontWeight: "700",
-    lineHeight: 20,
-    marginBottom: 12,
-  },
-  reviewOptionsList: {
-    gap: 8,
-  },
-  reviewOptionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "#1E293B",
-    padding: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#334155",
-  },
-  reviewOptionCorrectBg: {
-    backgroundColor: "rgba(61,190,122,0.06)",
-    borderColor: "#3DBE7A44",
-  },
-  reviewOptionWrongBg: {
-    backgroundColor: "rgba(255,107,107,0.06)",
-    borderColor: "#FF6B6B44",
-  },
-  reviewOptionLabel: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: "#334155",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 8,
-  },
-  reviewOptionLabelCorrect: {
-    backgroundColor: "#3DBE7A",
-  },
-  reviewOptionLabelWrong: {
-    backgroundColor: "#FF6B6B",
-  },
-  reviewOptionLetter: {
-    color: "#FFFFFF",
+  qNumText: {
     fontSize: 10,
-    fontWeight: "800",
+    fontWeight: "700",
+    color: Colors.textLight,
+  },
+  reviewQText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: Colors.textDark,
+    lineHeight: 16,
+  },
+  reviewOptionBox: {
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    backgroundColor: "#F8FAFC",
+  },
+  reviewCorrectOption: {
+    backgroundColor: "#ECFDF5",
+  },
+  reviewWrongOption: {
+    backgroundColor: "#FEF2F2",
   },
   reviewOptionText: {
-    color: "#94A3B8",
-    fontSize: 12,
-    fontWeight: "600",
-    flex: 1,
+    fontSize: 11,
+    color: Colors.textDark,
   },
-  reviewOptionTextCorrect: {
-    color: "#3DBE7A",
-    fontWeight: "700",
-  },
-  reviewOptionTextWrong: {
-    color: "#FF6B6B",
-    fontWeight: "700",
+  explanationText: {
+    fontSize: 10,
+    color: Colors.textLight,
+    marginTop: 6,
+    lineHeight: 14,
   },
 });
 
